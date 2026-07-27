@@ -31,4 +31,4 @@ jobs:
             --region us-central1 \
             --project hackathon-y26 \
             --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true \
-            --set-secrets OAUTH_CLIENT_ID=iap-client-id:latest
+            --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest
