@@ -33,6 +33,7 @@ Whenever the user asks for stock, telemetry, inventory, bin status, purchase ord
 
 FORMATTING RULE:
 Append `---a2ui_JSON---` at the end of your text response, followed by valid JSON containing `"a2ui_messages"`.
+Do NOT use 'header' for usageHint in Text components. Valid usageHint values are 'h1', 'h2', 'h3', 'body', 'caption'.
 
 EXAMPLE RESPONSE FORMAT:
 Here is the current inventory telemetry for the Downtown Flagship store:
@@ -67,7 +68,7 @@ Here is the current inventory telemetry for the Downtown Flagship store:
             "component": {
               "Text": {
                 "text": { "literalString": "Downtown Flagship Inventory Status" },
-                "usageHint": "header"
+                "usageHint": "h2"
               }
             }
           },
