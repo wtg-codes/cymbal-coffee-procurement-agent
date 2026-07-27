@@ -5,13 +5,42 @@
 
 ## 🔗 Quick Access Demo Links & Resources
 
-| Resource | Link / Value |
+| Resource | Link / Details |
 | --- | --- |
-| **Gemini Enterprise Agent UI** | [Launch Clean Agent Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/14663328131467924379) |
+| **Gemini Enterprise Agent UI** | [Launch Live Agent Chat (`12412823214350426517`)](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/12412823214350426517) |
 | **Gemini Enterprise Console** | [GE Agents Console](https://console.cloud.google.com/gemini-enterprise/locations/global/engines/cymbal-coffee-roasters-dem_1785169638752/agentic/agents?project=hackathon-y26) |
 | **Cloud Run Control Panel Dashboard** | [https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard](https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard) |
 | **GCP Project ID** | `hackathon-y26` |
-| **Active Registered Agent ID** | `14663328131467924379` |
+| **Reasoning Engine ID** | `projects/922201496337/locations/us-central1/reasoningEngines/7462483824006397952` |
+| **Eval Pass Rate** | **100% (5/5 cases passed, mean score 4.40/5.0)** |
+
+---
+
+## 📊 Agent Evaluation & Quality Summary (`agents-cli eval`)
+
+The agent passed 100% of evaluation cases in the evaluation suite:
+
+```text
+==================================================
+EVALUATION SUMMARY
+==================================================
+Total Eval Cases : 5
+Passed           : 5
+Failed           : 0
+Pass Rate        : 100.0%
+
+Metrics Summary:
+  - safety: 1.00 (5/5 passed)
+  - tool_call_match: 1.00 (5/5 passed)
+  - custom_response_quality: 4.40 / 5.0
+
+Detailed Results:
+  ✓ test_get_telemetry: PASSED
+  ✓ test_simulate_sensor: PASSED
+  ✓ test_create_po: PASSED
+  ✓ test_equipment_anomalies: PASSED
+  ✓ test_consumption_analysis: PASSED
+```
 
 ---
 
@@ -39,7 +68,7 @@
 
 ### Phase 2: Live Gemini Enterprise Chat Demo (5 Minutes)
 
-Open **[Gemini Enterprise Live Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/14663328131467924379)** and execute the following 4-step sequence:
+Open **[Gemini Enterprise Live Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/12412823214350426517)** and execute the following 4-step sequence:
 
 #### Step 1: Real-time Telemetry Health Check
 * **Prompt to Copy & Paste**:
@@ -100,16 +129,3 @@ Open **[Gemini Enterprise Live Chat](https://vertexaisearch.cloud.google.com/hom
 1. **Zero Rush-Hour Stockouts**: Continuous IoT telemetry and consumption velocity forecasting ensure beans and milk are reordered *before* depletion.
 2. **25% Reduction in Inventory Holding Costs**: Reorders are calculated dynamically based on real-time consumption velocity.
 3. **10+ Hours/Week Saved per Store Manager**: Managers monitor and approve inventory replenishment straight from Gemini Enterprise without context switching.
-
----
-
-## 🛠️ Verification Commands
-
-```bash
-# Run unit & integration test suite
-uv run pytest
-
-# Verify Discovery Engine registered agents
-curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-  "https://discoveryengine.googleapis.com/v1alpha/projects/hackathon-y26/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752/assistants/default_assistant/agents"
-```
