@@ -20,6 +20,7 @@ from app.tools import (
 
 root_agent = Agent(
     name="cymbal_coffee_procurement_agent",
+    description="Intelligent procurement and inventory agent for Cymbal Coffee Roasters.",
     model=Gemini(
         model="gemini-flash-latest",
         retry_options=types.HttpRetryOptions(attempts=3),

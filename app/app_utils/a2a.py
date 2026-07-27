@@ -238,6 +238,36 @@ async def attach_a2a_routes(
         agent_version=resolved_agent_version,
     ).build()
 
+    from a2a.types import AgentSkill
+
+    agent_card.description = "Intelligent procurement and inventory agent for Cymbal Coffee Roasters."
+    agent_card.skills = [
+        AgentSkill(
+            id="check_inventory",
+            name="Check Store Inventory",
+            description="Monitor real-time coffee bean and milk bin telemetry levels across Cymbal Coffee store locations.",
+            tags=["inventory", "telemetry"],
+        ),
+        AgentSkill(
+            id="detect_anomalies",
+            name="Detect Equipment Anomalies",
+            description="Identify hopper jam anomalies, temperature spikes, and equipment maintenance issues.",
+            tags=["anomalies", "equipment"],
+        ),
+        AgentSkill(
+            id="create_purchase_order",
+            name="Create Purchase Order",
+            description="Automatically generate and submit Purchase Orders to suppliers when inventory drops below safety thresholds.",
+            tags=["procurement", "purchase_order"],
+        ),
+        AgentSkill(
+            id="notify_manager",
+            name="Notify Store Manager",
+            description="Send instant alerts to store managers regarding critical stockouts or equipment failures.",
+            tags=["notifications"],
+        ),
+    ]
+
     request_handler = DefaultRequestHandler(
         agent_executor=CustomA2aAgentExecutor(agent=agent, runner=runner),
         task_store=task_store,
