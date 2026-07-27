@@ -1,0 +1,57 @@
+{
+  "eval_cases": [
+    {
+      "eval_case_id": "check_realtime_inventory",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Check the real-time coffee bean inventory levels across all Cymbal Coffee store locations."}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "SFO Terminal 2 location is showing a WARNING for Organic Dark Roast Beans at only 15% stock level."}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "simulate_sensor_event",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Simulate an IoT sensor drop for Downtown Dark Roast beans down to 12% capacity."}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "CRITICAL"}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "analyze_consumption_velocity",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Analyze consumption velocity for Downtown Dark Roast and predict our stockout window."}]
+      }
+    },
+    {
+      "eval_case_id": "generate_purchase_order",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Generate an expedited Purchase Order to Cymbal Roasters for 40kg of Dark Roast beans."}]
+      },
+      "reference": {
+        "response": {
+          "role": "model",
+          "parts": [{"text": "PO-CYMBAL-1001"}]
+        }
+      }
+    },
+    {
+      "eval_case_id": "detect_equipment_health",
+      "prompt": {
+        "role": "user",
+        "parts": [{"text": "Scan equipment health across all stores and notify store managers and customers."}]
+      }
+    }
+  ]
+}
