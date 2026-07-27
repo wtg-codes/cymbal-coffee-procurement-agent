@@ -9,9 +9,11 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
+      PYTHONPATH: '.'
       GOOGLE_GENAI_USE_VERTEXAI: 'false'
       GOOGLE_CLOUD_PROJECT: 'hackathon-y26'
       GOOGLE_CLOUD_LOCATION: 'global'
+
 
 
     permissions:
