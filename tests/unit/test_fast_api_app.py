@@ -1,4 +1,10 @@
+import os
+
 import pytest
+
+os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
+os.environ["GCP_PROJECT"] = "hackathon-y26"
+
 from fastapi.testclient import TestClient
 
 from app.fast_api_app import app

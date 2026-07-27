@@ -28,6 +28,11 @@ from app.tools.telemetry import (
 )
 
 load_dotenv()
+if not os.getenv("GOOGLE_CLOUD_PROJECT"):
+    os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
+if not os.getenv("GCP_PROJECT"):
+    os.environ["GCP_PROJECT"] = "hackathon-y26"
+
 setup_telemetry()
 try:
     _, project_id = google.auth.default()
