@@ -74,6 +74,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app: FastAPI = get_fast_api_app(
     agents_dir=AGENT_DIR,
+    gemini_enterprise_app_name="app",
     web=True,
     artifact_service_uri=services.ARTIFACT_SERVICE_URI,
     allow_origins=allow_origins,
@@ -81,6 +82,7 @@ app: FastAPI = get_fast_api_app(
     otel_to_cloud=False,
     lifespan=lifespan,
 )
+
 app.title = "cymbal-coffee-procurement-agent"
 app.description = (
     "API for interacting with the Agent cymbal-coffee-procurement-agent"
@@ -89,7 +91,14 @@ app.description = (
 
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from app.tools.telemetry import STORE_TELEMETRY, simulate_sensor_event, get_bin_telemetry
+from app.tools.telemetry import (
+    STORE_TELEMETRY,
+    simulate_sensor_event,
+    get_bin_telemetry,
+    start_simulation,
+    stop_simulation,
+    get_simulation_status,
+)
 from app.tools.procurement import PURCHASE_ORDERS, create_purchase_order
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
@@ -108,7 +117,20 @@ def get_dashboard_data() -> dict:
     return {
         "stores": STORE_TELEMETRY,
         "purchase_orders": PURCHASE_ORDERS,
+        "simulation": get_simulation_status(),
     }
+
+class StartSimRequest(BaseModel):
+    duration_minutes: int = 120
+
+@app.post("/api/dashboard/simulation/start")
+def api_start_simulation(req: StartSimRequest = StartSimRequest()) -> dict:
+    return start_simulation(duration_minutes=req.duration_minutes)
+
+@app.post("/api/dashboard/simulation/stop")
+def api_stop_simulation() -> dict:
+    return stop_simulation()
+
 
 class SimulateRequest(BaseModel):
     store_id: str
