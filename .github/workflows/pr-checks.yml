@@ -44,7 +44,10 @@ jobs:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
       - name: Run Tests with Coverage
-        run: uv run pytest --cov=app --cov-fail-under=80
+        run: |
+          touch .env
+          uv run pytest --cov=app --cov-fail-under=80
+
 
       - name: Run Evaluator
         if: env.GCP_CREDENTIALS != ''
