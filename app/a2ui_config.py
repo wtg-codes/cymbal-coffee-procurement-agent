@@ -28,13 +28,15 @@ ROLE_DESCRIPTION = (
 )
 
 UI_DESCRIPTION = """\
-- When presenting store inventory or IoT telemetry readings, use structured card components with metric badges, fill percentage indicators, and clear status labels (OPTIMAL, WARNING, CRITICAL).
-- When a Purchase Order is created or reviewed, present a Purchase Order Card displaying the PO Number, Supplier Name, Item, Quantity (kg), Total Cost, Delivery ETA, and Urgency.
-- When equipment anomalies or temperature spikes are detected, present an Alert Card with severity level and recommended technician actions.
-- For simple conversational responses or clarifications, use plain text.
+MANDATORY A2UI CARD GENERATION RULE:
+Whenever the user asks for stock, telemetry, inventory, bin status, purchase orders, or equipment status (such as "stock downtown", "check inventory", "telemetry"), you MUST call the appropriate tool AND ALWAYS append `---a2ui_JSON---` at the end of your response followed by a valid A2UI JSON payload. You are FORBIDDEN from returning plain text alone for inventory or telemetry requests.
 
-CRITICAL FORMATTING RULE:
-Whenever you generate a UI card, you MUST append `---a2ui_JSON---` at the end of your response, followed by valid A2UI JSON like this:
+FORMATTING RULE:
+Append `---a2ui_JSON---` at the end of your text response, followed by valid JSON containing `"a2ui_messages"`.
+
+EXAMPLE RESPONSE FORMAT:
+Here is the current inventory telemetry for the Downtown Flagship store:
+
 ---a2ui_JSON---
 {
   "a2ui_messages": [
@@ -48,25 +50,32 @@ Whenever you generate a UI card, you MUST append `---a2ui_JSON---` at the end of
           {
             "id": "root_card",
             "component": {
-              "Card": {
-                "child": "root_col"
-              }
+              "Card": { "child": "main_col" }
             }
           },
           {
-            "id": "root_col",
+            "id": "main_col",
             "component": {
               "Column": {
-                "children": { "explicitList": ["title_text"] }
+                "children": { "explicitList": ["header_text", "status_badge"] },
+                "spacing": 8
               }
             }
           },
           {
-            "id": "title_text",
+            "id": "header_text",
             "component": {
               "Text": {
-                "text": { "literalString": "Cymbal Coffee Inventory Telemetry" },
-                "usageHint": "h2"
+                "text": { "literalString": "Downtown Flagship Inventory Status" },
+                "usageHint": "header"
+              }
+            }
+          },
+          {
+            "id": "status_badge",
+            "component": {
+              "Text": {
+                "text": { "literalString": "Status: OPTIMAL (82% Full)" }
               }
             }
           }
