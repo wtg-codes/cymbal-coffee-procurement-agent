@@ -12,7 +12,9 @@ def test_get_a2ui_extensions():
 
 def test_process_a2ui_response_with_a2ui_block():
     """Responses containing <a2ui-json> should parse without error."""
-    text = 'Here is the result: <a2ui-json>[{"message":"Hi","components":[]}]</a2ui-json>'
+    text = (
+        'Here is the result: <a2ui-json>[{"message":"Hi","components":[]}]</a2ui-json>'
+    )
     parts = process_a2ui_response(text)
     assert parts is not None
 

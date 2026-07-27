@@ -94,7 +94,7 @@ def check_simulation_timeout() -> bool:
     if not SIMULATION_STATE["is_active"]:
         return False
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     expires_at = SIMULATION_STATE.get("expires_at")
 
     if expires_at and now > expires_at:
@@ -113,13 +113,15 @@ def tick_simulation() -> None:
     if not SIMULATION_STATE["is_active"] or not SIMULATION_STATE.get("started_at"):
         return
 
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     elapsed_seconds = (now - SIMULATION_STATE["started_at"]).total_seconds()
-    
+
     # Map 1 real second -> 1.5 simulated minutes of morning rush
     simulated_minutes = int(elapsed_seconds * 1.5)
     base_time = datetime.datetime.combine(datetime.date.today(), datetime.time(6, 30))
-    sim_time = (base_time + datetime.timedelta(minutes=simulated_minutes)).strftime("%I:%M %p")
+    sim_time = (base_time + datetime.timedelta(minutes=simulated_minutes)).strftime(
+        "%I:%M %p"
+    )
 
     # Gradual morning consumption curve per store
     # Downtown Flagship (#101) - Heavy morning rush
@@ -136,16 +138,34 @@ def tick_simulation() -> None:
     new_df_milk = max(6.0, round(45.0 - (depletion_amount * 0.9), 1))
 
     df_beans["level_percent"] = new_df_beans
-    df_beans["current_weight_kg"] = round((new_df_beans / 100.0) * df_beans["max_capacity_kg"], 1)
-    df_beans["status"] = "CRITICAL" if new_df_beans <= 15.0 else ("WARNING" if new_df_beans <= 25.0 else "OPTIMAL")
+    df_beans["current_weight_kg"] = round(
+        (new_df_beans / 100.0) * df_beans["max_capacity_kg"], 1
+    )
+    df_beans["status"] = (
+        "CRITICAL"
+        if new_df_beans <= 15.0
+        else ("WARNING" if new_df_beans <= 25.0 else "OPTIMAL")
+    )
 
     df_espresso["level_percent"] = new_df_espresso
-    df_espresso["current_weight_kg"] = round((new_df_espresso / 100.0) * df_espresso["max_capacity_kg"], 1)
-    df_espresso["status"] = "CRITICAL" if new_df_espresso <= 15.0 else ("WARNING" if new_df_espresso <= 25.0 else "OPTIMAL")
+    df_espresso["current_weight_kg"] = round(
+        (new_df_espresso / 100.0) * df_espresso["max_capacity_kg"], 1
+    )
+    df_espresso["status"] = (
+        "CRITICAL"
+        if new_df_espresso <= 15.0
+        else ("WARNING" if new_df_espresso <= 25.0 else "OPTIMAL")
+    )
 
     df_milk["level_percent"] = new_df_milk
-    df_milk["current_weight_kg"] = round((new_df_milk / 100.0) * df_milk["max_capacity_kg"], 1)
-    df_milk["status"] = "CRITICAL" if new_df_milk <= 15.0 else ("WARNING" if new_df_milk <= 25.0 else "OPTIMAL")
+    df_milk["current_weight_kg"] = round(
+        (new_df_milk / 100.0) * df_milk["max_capacity_kg"], 1
+    )
+    df_milk["status"] = (
+        "CRITICAL"
+        if new_df_milk <= 15.0
+        else ("WARNING" if new_df_milk <= 25.0 else "OPTIMAL")
+    )
 
     # Generate synthetic order event log items
     orders = SIMULATION_STATE.get("simulated_orders", [])
@@ -157,16 +177,18 @@ def tick_simulation() -> None:
             ("20x Cappuccinos", "downtown-flagship", -0.80, "oat-milk"),
             ("15x Drip Dark Roast", "downtown-flagship", -0.45, "dark-roast-beans"),
         ]
-        import random
         item = order_types[len(orders) % len(order_types)]
-        orders.insert(0, {
-            "id": f"ORD-SF-{1000 + len(orders)}",
-            "time": sim_time,
-            "description": item[0],
-            "store_id": item[1],
-            "impact": f"{item[2]} kg",
-            "status": "PROCESSING",
-        })
+        orders.insert(
+            0,
+            {
+                "id": f"ORD-SF-{1000 + len(orders)}",
+                "time": sim_time,
+                "description": item[0],
+                "store_id": item[1],
+                "impact": f"{item[2]} kg",
+                "status": "PROCESSING",
+            },
+        )
         SIMULATION_STATE["simulated_orders"] = orders[:20]  # Keep latest 20
         SIMULATION_STATE["total_orders_processed"] = len(orders) * 18
 
@@ -174,7 +196,7 @@ def tick_simulation() -> None:
 def start_simulation(duration_minutes: int = 120) -> dict[str, Any]:
     """Start synthetic demo simulation mode with a max 2-hour auto-timeout."""
     duration_minutes = min(max(1, duration_minutes), 120)  # Cap at 120 mins (2h max)
-    now = datetime.datetime.now(datetime.timezone.utc)
+    now = datetime.datetime.now(datetime.UTC)
     expires_at = now + datetime.timedelta(minutes=duration_minutes)
 
     SIMULATION_STATE["is_active"] = True
@@ -207,14 +229,16 @@ def get_simulation_status() -> dict[str, Any]:
     remaining_seconds = 0
 
     if is_active and SIMULATION_STATE.get("expires_at"):
-        now = datetime.datetime.now(datetime.timezone.utc)
+        now = datetime.datetime.now(datetime.UTC)
         diff = (SIMULATION_STATE["expires_at"] - now).total_seconds()
         remaining_seconds = max(0, int(diff))
 
     return {
         "is_active": is_active,
         "remaining_seconds": remaining_seconds,
-        "expires_at": SIMULATION_STATE["expires_at"].isoformat() if is_active and SIMULATION_STATE.get("expires_at") else None,
+        "expires_at": SIMULATION_STATE["expires_at"].isoformat()
+        if is_active and SIMULATION_STATE.get("expires_at")
+        else None,
         "simulated_orders": SIMULATION_STATE.get("simulated_orders", []),
         "total_orders_processed": SIMULATION_STATE.get("total_orders_processed", 0),
     }
@@ -257,7 +281,9 @@ def simulate_sensor_event(
 
     target = store["bins"][item_key]
     target["level_percent"] = new_level_percent
-    target["current_weight_kg"] = round((new_level_percent / 100.0) * target["max_capacity_kg"], 1)
+    target["current_weight_kg"] = round(
+        (new_level_percent / 100.0) * target["max_capacity_kg"], 1
+    )
     target["status"] = "CRITICAL" if new_level_percent <= 15.0 else "OPTIMAL"
 
     return {
@@ -278,5 +304,3 @@ def detect_equipment_anomalies(store_id: str = "downtown-flagship") -> dict[str,
         "health_status": "ALL_SYSTEMS_HEALTHY",
         "detected_anomalies": [],
     }
-
-

@@ -72,7 +72,6 @@ def setup_telemetry() -> str | None:
     except Exception as e:
         logging.warning("GCP OpenTelemetry exporters skipped (no credentials): %s", e)
 
-
     # Set up GenAI SDK instrumentation
     _setup_instrumentation_lib_if_installed()
 

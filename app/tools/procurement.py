@@ -60,7 +60,9 @@ def create_purchase_order(
         "unit_price_usd": supplier["price_per_kg"],
         "total_cost_usd": total_cost,
         "urgency": urgency,
-        "delivery_eta": (datetime.datetime.now() + datetime.timedelta(hours=2)).strftime("%Y-%m-%d %H:%M:%S"),
+        "delivery_eta": (
+            datetime.datetime.now() + datetime.timedelta(hours=2)
+        ).strftime("%Y-%m-%d %H:%M:%S"),
         "status": "ROUTED_TO_FULFILLMENT",
     }
     PURCHASE_ORDERS.append(po_record)

@@ -40,6 +40,7 @@ async def test_app_lifespan(monkeypatch):
     """Lifespan should initialize runner and attach A2A routes."""
     monkeypatch.setenv("MOCK_LLM_FOR_TEST", "TRUE")
     from app.fast_api_app import lifespan
+
     async with lifespan(app):
         assert hasattr(app.state, "runner")
         assert app.state.agent_app_name == "app"
@@ -48,4 +49,3 @@ async def test_app_lifespan(monkeypatch):
         async for event in app.state.runner.run_async():
             events.append(event)
         assert len(events) == 1
-

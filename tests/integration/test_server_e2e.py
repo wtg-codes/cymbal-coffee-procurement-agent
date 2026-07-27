@@ -72,7 +72,6 @@ def start_server() -> subprocess.Popen[str]:
         env["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
         env["MOCK_LLM_FOR_TEST"] = "TRUE"
 
-
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,
@@ -149,6 +148,8 @@ def test_collect_feedback(server_fixture: subprocess.Popen[str]) -> None:
         FEEDBACK_URL, json=feedback_data, headers=HEADERS, timeout=10
     )
     assert response.status_code == 200
+
+
 def test_adk_run_sse(server_fixture: subprocess.Popen[str]) -> None:
     """Test native ADK SSE streaming route."""
     logger.info("Starting ADK /run_sse test")
@@ -168,7 +169,10 @@ def test_adk_run_sse(server_fixture: subprocess.Popen[str]) -> None:
         "app_name": "app",
         "user_id": user_id,
         "session_id": session_id,
-        "new_message": {"role": "user", "parts": [{"text": "Check coffee bean telemetry."}]},
+        "new_message": {
+            "role": "user",
+            "parts": [{"text": "Check coffee bean telemetry."}],
+        },
         "streaming": True,
     }
     response = requests.post(
@@ -187,8 +191,6 @@ def test_adk_run_sse(server_fixture: subprocess.Popen[str]) -> None:
 
 
 def test_a2a_chat_stream(server_fixture: subprocess.Popen[str]) -> None:
-
-
     """Test A2A JSON-RPC streaming protocol endpoint."""
     logger.info("Starting A2A chat stream test")
 

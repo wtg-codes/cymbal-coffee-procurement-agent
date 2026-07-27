@@ -119,6 +119,7 @@ ADK allows you to define agents, tools, and even multi-agent workflows using a s
 *   **Loading Agent Config in Python**:
     ```python
     from google.adk.agents import config_agent_utils
+
     root_agent = config_agent_utils.from_config("{agent_folder}/root_agent.yaml")
     ```
 
@@ -133,6 +134,7 @@ The `LlmAgent` is the cornerstone of intelligent behavior, leveraging an LLM for
 ```python
 from google.adk.agents import Agent
 
+
 def get_current_time(city: str) -> dict:
     """Returns the current time in a specified city."""
     # Mock implementation
@@ -140,12 +142,13 @@ def get_current_time(city: str) -> dict:
         return {"status": "success", "time": "10:30 AM EST"}
     return {"status": "error", "message": f"Time for {city} not available."}
 
+
 my_first_llm_agent = Agent(
     name="time_teller_agent",
-    model="gemini-2.5-flash", # Essential: The LLM powering the agent
+    model="gemini-2.5-flash",  # Essential: The LLM powering the agent
     instruction="You are a helpful assistant that tells the current time in cities. Use the 'get_current_time' tool for this purpose.",
-    description="Tells the current time in a specified city.", # Crucial for multi-agent delegation
-    tools=[get_current_time] # List of callable functions/tool instances
+    description="Tells the current time in a specified city.",  # Crucial for multi-agent delegation
+    tools=[get_current_time],  # List of callable functions/tool instances
 )
 ```
 
@@ -157,11 +160,11 @@ my_first_llm_agent = Agent(
     from google.adk.agents import Agent
 
     gen_config = genai_types.GenerateContentConfig(
-        temperature=0.2,            # Controls randomness (0.0-1.0), lower for more deterministic.
-        top_p=0.9,                  # Nucleus sampling: sample from top_p probability mass.
-        top_k=40,                   # Top-k sampling: sample from top_k most likely tokens.
-        max_output_tokens=1024,     # Max tokens in LLM's response.
-        stop_sequences=["## END"]   # LLM will stop generating if these sequences appear.
+        temperature=0.2,  # Controls randomness (0.0-1.0), lower for more deterministic.
+        top_p=0.9,  # Nucleus sampling: sample from top_p probability mass.
+        top_k=40,  # Top-k sampling: sample from top_k most likely tokens.
+        max_output_tokens=1024,  # Max tokens in LLM's response.
+        stop_sequences=["## END"],  # LLM will stop generating if these sequences appear.
     )
     agent = Agent(
         # ... basic config ...
@@ -181,14 +184,18 @@ This is the most reliable way to make an LLM produce predictable, parseable JSON
     from pydantic import BaseModel, Field
     from typing import Literal
 
+
     class SearchQuery(BaseModel):
         """Model representing a specific search query for web search."""
+
         search_query: str = Field(
             description="A highly specific and targeted query for web search."
         )
 
+
     class Feedback(BaseModel):
         """Model for providing evaluation feedback on research quality."""
+
         grade: Literal["pass", "fail"] = Field(
             description="Evaluation result. 'pass' if the research is sufficient, 'fail' if it needs revision."
         )
@@ -197,7 +204,7 @@ This is the most reliable way to make an LLM produce predictable, parseable JSON
         )
         follow_up_queries: list[SearchQuery] | None = Field(
             default=None,
-            description="A list of specific, targeted follow-up search queries needed to fix research gaps. This should be null or empty if the grade is 'pass'."
+            description="A list of specific, targeted follow-up search queries needed to fix research gaps. This should be null or empty if the grade is 'pass'.",
         )
     ```
 
@@ -212,9 +219,9 @@ This is the most reliable way to make an LLM produce predictable, parseable JSON
         If the research is thorough, grade it 'pass'.
         Your response must be a single, raw JSON object validating against the 'Feedback' schema.
         """,
-        output_schema=Feedback, # This forces the LLM to output JSON matching the Feedback model.
-        output_key="research_evaluation", # The resulting JSON object will be saved to state.
-        disallow_transfer_to_peers=True, # Prevents this agent from delegating. Its job is only to evaluate.
+        output_schema=Feedback,  # This forces the LLM to output JSON matching the Feedback model.
+        output_key="research_evaluation",  # The resulting JSON object will be saved to state.
+        disallow_transfer_to_peers=True,  # Prevents this agent from delegating. Its job is only to evaluate.
     )
     ```
 
@@ -225,7 +232,7 @@ The `instruction` is critical. It guides the LLM's behavior, persona, and tool u
 **Example 1: Constraining Tool Use and Output Format**
 ```python
 import datetime
-from google.adk.tools import google_search   
+from google.adk.tools import google_search
 
 plan_generator = LlmAgent(
     model="gemini-2.5-flash",
@@ -261,8 +268,8 @@ from google.adk.agents import SequentialAgent, Agent
 
 document_pipeline = SequentialAgent(
     name="SummaryQuestionPipeline",
-    sub_agents=[summarizer, question_generator], # Order matters!
-    description="Summarizes a document then generates questions."
+    sub_agents=[summarizer, question_generator],  # Order matters!
+    description="Summarizes a document then generates questions.",
 )
 ```
 
@@ -306,10 +313,10 @@ main_orchestrator = LlmAgent(
     3. After the workflow completes, transfer to `presenter_agent` to share the results with the user.
     """,
     sub_agents=[
-        intake_agent,      # Interactive: "What city do you want to research?"
-        research_workflow, # Headless: SequentialAgent[Search, Scrape, Summarize] -> writes to state['summary']
-        presenter_agent    # Interactive: "Here is the summary for {city}. Any questions?"
-    ]
+        intake_agent,  # Interactive: "What city do you want to research?"
+        research_workflow,  # Headless: SequentialAgent[Search, Scrape, Summarize] -> writes to state['summary']
+        presenter_agent,  # Interactive: "Here is the summary for {city}. Any questions?"
+    ],
 )
 ```
 
@@ -334,16 +341,18 @@ The Agent-to-Agent (A2A) Protocol enables agents to communicate over a network, 
 *   **Exposing an Agent**:
     ```python
     from google.adk.a2a.utils.agent_to_a2a import to_a2a
+
     # root_agent is your existing ADK Agent instance
     a2a_app = to_a2a(root_agent, port=8001)
     ```
 *   **Consuming a Remote Agent**:
     ```python
     from google.adk.a2a.remote_a2a_agent import RemoteA2aAgent
+
     prime_checker_agent = RemoteA2aAgent(
         name="prime_agent",
         description="A remote agent that checks if numbers are prime.",
-        agent_card="http://localhost:8001/a2a/check_prime_agent/.well-known/agent.json"
+        agent_card="http://localhost:8001/a2a/check_prime_agent/.well-known/agent.json",
     )
     ```
 
@@ -361,6 +370,7 @@ from google.adk.agents.invocation_context import InvocationContext
 from google.adk.events import Event, EventActions
 from typing import AsyncGenerator
 import logging
+
 
 class EscalationChecker(BaseAgent):
     """Checks research evaluation and escalates to stop the loop if grade is 'pass'."""
@@ -490,7 +500,10 @@ import re
 from google.adk.agents.callback_context import CallbackContext
 from google.genai import types as genai_types
 
-def citation_replacement_callback(callback_context: CallbackContext) -> genai_types.Content:
+
+def citation_replacement_callback(
+    callback_context: CallbackContext,
+) -> genai_types.Content:
     """Replaces <cite> tags in a report with Markdown-formatted links."""
     # 1. Get raw report and sources from state.
     final_report = callback_context.state.get("final_cited_report", "")
@@ -500,7 +513,7 @@ def citation_replacement_callback(callback_context: CallbackContext) -> genai_ty
     def tag_replacer(match: re.Match) -> str:
         short_id = match.group(1)
         if not (source_info := sources.get(short_id)):
-            return "" # Remove invalid tags
+            return ""  # Remove invalid tags
         title = source_info.get("title", short_id)
         return f" [{title}]({source_info['url']})"
 
@@ -510,7 +523,7 @@ def citation_replacement_callback(callback_context: CallbackContext) -> genai_ty
         tag_replacer,
         final_report,
     )
-    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report) # Fix spacing
+    processed_report = re.sub(r"\s+([.,;:])", r"\1", processed_report)  # Fix spacing
 
     # 4. Save the new version to state and return it to override the original agent output.
     callback_context.state["final_report_with_citations"] = processed_report
@@ -568,7 +581,7 @@ app_for_engine = reasoning_engines.AdkApp(agent=root_agent, enable_tracing=True)
 remote_app = agent_engines.create(
     agent_engine=app_for_engine,
     requirements=["google-cloud-aiplatform[adk,agent_engines]"],
-    display_name="My Production Agent"
+    display_name="My Production Agent",
 )
 ```
 ### 12.3 Cloud Run
@@ -661,26 +674,25 @@ from google.adk.sessions import InMemorySessionService
 from app.agent import root_agent
 from google.genai import types as genai_types
 
+
 async def main():
     """Runs the agent with a sample query."""
     session_service = InMemorySessionService()
     await session_service.create_session(
         app_name="app", user_id="test_user", session_id="test_session"
     )
-    runner = Runner(
-        agent=root_agent, app_name="app", session_service=session_service
-    )
+    runner = Runner(agent=root_agent, app_name="app", session_service=session_service)
     query = "I want a recipe for pancakes"
     async for event in runner.run_async(
         user_id="test_user",
         session_id="test_session",
         new_message=genai_types.Content(
-            role="user", 
-            parts=[genai_types.Part.from_text(text=query)]
+            role="user", parts=[genai_types.Part.from_text(text=query)]
         ),
     ):
         if event.is_final_response():
             print(event.content.parts[0].text)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

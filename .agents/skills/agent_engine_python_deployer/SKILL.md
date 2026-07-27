@@ -129,7 +129,7 @@ agent_card = create_agent_card(
 Override the default executor to intercept the stream and parse A2UI payloads, or simply yield standard A2A messages for non-A2UI agents.
 ```python
 from vertexai.preview.reasoning_engines import A2aAgent
-import agent_executor # Your custom executor file
+import agent_executor  # Your custom executor file
 
 a2a_agent = A2aAgent(
     agent_card=agent_card,
@@ -169,12 +169,14 @@ from vertexai.preview.reasoning_engines import A2aAgent
 from google.genai import types
 
 # Load your A2A wrapper
-a2a_agent = A2aAgent(...) 
+a2a_agent = A2aAgent(...)
 
 client = vertexai.Client(project=PROJ_ID, location=LOC)
 
 # Construct the full resource name
-existing_engine_name = f"projects/{PROJ_ID}/locations/{LOC}/reasoningEngines/{existing_id}"
+existing_engine_name = (
+    f"projects/{PROJ_ID}/locations/{LOC}/reasoningEngines/{existing_id}"
+)
 
 # Symmetric config (Use env_vars for flags!)
 config = {
@@ -184,13 +186,11 @@ config = {
         "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
         "OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT": "true",
     },
-    "extra_packages": ["agent_executor.py", "a2ui_examples.py", "a2ui_schema.py"]
+    "extra_packages": ["agent_executor.py", "a2ui_examples.py", "a2ui_schema.py"],
 }
 
 remote_agent = client.agent_engines.update(
-    name=existing_engine_name,
-    agent=a2a_agent,
-    config=config
+    name=existing_engine_name, agent=a2a_agent, config=config
 )
 print(f"✓ Agent updated inplace: {remote_agent.name}")
 ```
@@ -202,13 +202,17 @@ import requests
 from google.auth import default
 from google.auth.transport.requests import Request
 
+
 def get_bearer_token():
     credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
     credentials.refresh(Request())
     return credentials.token
 
+
 # ... deployment snippet above ...
-remote_engine_resource = remote_agent.api_resource.name # e.g. projects/.../locations/.../reasoningEngines/...
+remote_engine_resource = (
+    remote_agent.api_resource.name
+)  # e.g. projects/.../locations/.../reasoningEngines/...
 
 # Fetch Agent Card JSON from endpoint for registration
 a2a_endpoint = f"https://{os.environ['LOCATION']}-aiplatform.googleapis.com/v1beta1/{remote_engine_resource}/a2a/v1/card"
@@ -231,7 +235,7 @@ payload = {
     # CRITICAL for A2A agents on Agent Engine: Must include authorizationConfig!
     "authorizationConfig": {
         "agentAuthorization": os.environ.get("AGENT_AUTHORIZATION")
-    }
+    },
 }
 
 response = requests.post(api_endpoint, headers=headers, json=payload)
@@ -269,16 +273,17 @@ from google.genai import types
 from google.auth import default
 # ... other standard ADK imports ...
 
+
 def main():
     project_id = "your-project-id"
     location = "us-central1"
     storage = "gs://your-staging-bucket"
-    existing_engine_id = os.environ.get("EXISTING_ENGINE_ID") # Set if updating
-    
+    existing_engine_id = os.environ.get("EXISTING_ENGINE_ID")  # Set if updating
+
     vertexai.init(project=project_id, location=location, staging_bucket=storage)
-    
+
     client = vertexai.Client(project=project_id, location=location)
-    
+
     # ... prepare a2a_agent wrapper ...
 
     config = {
@@ -289,7 +294,7 @@ def main():
             "google-cloud-aiplatform[agent_engines,adk]>=1.143.0",
             "a2a-sdk>=0.3.4",
             "pydantic==2.12.5",
-            "cloudpickle==3.1.2"
+            "cloudpickle==3.1.2",
         ],
         "env_vars": {
             "GOOGLE_CLOUD_AGENT_ENGINE_ENABLE_TELEMETRY": "true",
@@ -300,19 +305,22 @@ def main():
             "tools.py",
             "agent.py",
             "a2ui_examples.py",
-            "a2ui_schema.py" # Vendor all local imports
-        ]
+            "a2ui_schema.py",  # Vendor all local imports
+        ],
     }
 
     if existing_engine_id:
         engine_name = f"projects/{project_id}/locations/{location}/reasoningEngines/{existing_engine_id}"
         print(f"Applying inplace update to: {existing_engine_id}")
-        remote_agent = client.agent_engines.update(name=engine_name, agent=a2a_agent, config=config)
+        remote_agent = client.agent_engines.update(
+            name=engine_name, agent=a2a_agent, config=config
+        )
     else:
         print("Spinning up fresh create instance...")
         remote_agent = client.agent_engines.create(agent=a2a_agent, config=config)
-        
+
     print(f"✓ Process settlement: {remote_agent.name}")
+
 
 if __name__ == "__main__":
     main()
@@ -360,6 +368,8 @@ from google.protobuf import json_format
 
 # Monkey-patch json_format.MessageToJson and MessageToDict to handle Pydantic models (like AgentCard) correctly
 original_message_to_json = json_format.MessageToJson
+
+
 def patched_message_to_json(message, *args, **kwargs):
     if hasattr(message, "model_dump_json"):
         return message.model_dump_json()
@@ -368,9 +378,13 @@ def patched_message_to_json(message, *args, **kwargs):
     elif isinstance(message, dict):
         return json.dumps(message)
     return original_message_to_json(message, *args, **kwargs)
+
+
 json_format.MessageToJson = patched_message_to_json
 
 original_message_to_dict = json_format.MessageToDict
+
+
 def patched_message_to_dict(message, *args, **kwargs):
     if hasattr(message, "model_dump"):
         return message.model_dump()
@@ -379,26 +393,38 @@ def patched_message_to_dict(message, *args, **kwargs):
     elif isinstance(message, dict):
         return message
     return original_message_to_dict(message, *args, **kwargs)
+
+
 json_format.MessageToDict = patched_message_to_dict
 
 # STABLE VERSIONS FOR PYTHON 3.13 / A2UI
 VERSIONS = [
-    "google-adk==1.28.1", "a2a-sdk==0.3.25", "pydantic==2.12.5", 
-    "cloudpickle==3.1.2", "protobuf==6.33.6",
-    "a2ui-agent-sdk"
+    "google-adk==1.28.1",
+    "a2a-sdk==0.3.25",
+    "pydantic==2.12.5",
+    "cloudpickle==3.1.2",
+    "protobuf==6.33.6",
+    "a2ui-agent-sdk",
 ]
+
 
 def main():
     existing_id = os.environ.get("EXISTING_ENGINE_ID")
-    vertexai.init(project=os.environ["PROJECT_ID"], location="us-central1", staging_bucket=os.environ["BUCKET"])
+    vertexai.init(
+        project=os.environ["PROJECT_ID"],
+        location="us-central1",
+        staging_bucket=os.environ["BUCKET"],
+    )
     client = vertexai.Client(project=os.environ["PROJECT_ID"], location="us-central1")
-    
+
     # ... create agent card ...
-    
-    a2a_agent = A2aAgent(agent_card=my_card, agent_executor_builder=AdkAgentToA2AExecutor)
+
+    a2a_agent = A2aAgent(
+        agent_card=my_card, agent_executor_builder=AdkAgentToA2AExecutor
+    )
     config = {
-        "requirements": VERSIONS, 
-        "extra_packages": ["agent_executor.py", "agent.py", "tools.py"]
+        "requirements": VERSIONS,
+        "extra_packages": ["agent_executor.py", "agent.py", "tools.py"],
     }
 
     if existing_id:
@@ -406,8 +432,9 @@ def main():
         remote = client.agent_engines.update(name=name, agent=a2a_agent, config=config)
     else:
         remote = client.agent_engines.create(agent=a2a_agent, config=config)
-    
+
     print(f"Deploy complete: {remote.name}")
+
 
 if __name__ == "__main__":
     main()
