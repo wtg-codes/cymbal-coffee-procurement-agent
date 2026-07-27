@@ -19,9 +19,16 @@ from app.app_utils.typing import Feedback
 
 load_dotenv()
 setup_telemetry()
-_, project_id = google.auth.default()
-logging_client = google_cloud_logging.Client()
-logger = logging_client.logger(__name__)
+try:
+
+    _, project_id = google.auth.default()
+    logging_client = google_cloud_logging.Client()
+    logger = logging_client.logger(__name__)
+except Exception:
+    import logging
+
+    logger = logging.getLogger(__name__)
+
 allow_origins = (
     os.getenv("ALLOW_ORIGINS", "").split(",") if os.getenv("ALLOW_ORIGINS") else None
 )
@@ -40,7 +47,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         artifact_service=services.get_artifact_service(),
         auto_create_session=True,
     )
+    if os.getenv("MOCK_LLM_FOR_TEST") == "TRUE":
+        from google.adk.events import Event
+        from google.genai.types import Content, Part
+
+        async def mock_run_async(*args, **kwargs):
+            yield Event(
+                author="app",
+                content=Content(parts=[Part.from_text(text="Mock response for integration test")]),
+            )
+
+        runner.run_async = mock_run_async
+
     app.state.runner = runner
+
     app.state.agent_app_name = adk_app.name
     await attach_a2a_routes(
         app,
@@ -69,8 +89,12 @@ app.description = (
 
 @app.post("/feedback")
 def collect_feedback(feedback: Feedback) -> dict[str, str]:
-    logger.log_struct(feedback.model_dump(), severity="INFO")
+    if hasattr(logger, "log_struct"):
+        logger.log_struct(feedback.model_dump(), severity="INFO")
+    else:
+        logger.info(f"Feedback: {feedback.model_dump()}")
     return {"status": "success"}
+
 
 
 if __name__ == "__main__":

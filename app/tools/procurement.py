@@ -2,6 +2,7 @@
 
 import datetime
 from typing import Any
+
 from app.tools.telemetry import STORE_TELEMETRY
 
 SUPPLIER_CATALOG = {
