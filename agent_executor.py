@@ -109,7 +109,9 @@ class AdkAgentToA2AExecutor(agent_execution.AgentExecutor):
             )
             return
 
-        parts = [types.Part(root=types.TextPart(text=final_response_content))]
+        from app.a2ui_config import format_a2ui_parts
+
+        parts = format_a2ui_parts(final_response_content)
         await updater.add_artifact(parts, name="response")
         await updater.complete()
 

@@ -209,73 +209,63 @@ def extract_json_payload(json_str: str) -> dict | None:
     return None
 
 
-def process_a2ui_response(text: str):
-    """Parse model text output into A2A-compatible parts.
+def format_a2ui_parts(final_response_content: str):
+    """Parse text and convert A2UI JSON payloads into native A2A DataParts with mimeType application/json+a2ui."""
+    from a2a import types
 
-    Supports BOTH delimiter formats:
-      - SDK v0.9 format: <a2ui-json>...</a2ui-json>
-      - Legacy format: ---a2ui_JSON---
-    """
+    if not final_response_content:
+        return [types.Part(root=types.TextPart(text=""))]
+
+    text_part = final_response_content
+    json_string = None
+
+    if "---a2ui_JSON---" in final_response_content:
+        text_part, json_string = final_response_content.split("---a2ui_JSON---", 1)
+    elif (
+        "<a2ui-json>" in final_response_content
+        and "</a2ui-json>" in final_response_content
+    ):
+        start = final_response_content.find("<a2ui-json>")
+        end = final_response_content.find("</a2ui-json>")
+        text_part = (
+            final_response_content[:start]
+            + final_response_content[end + len("</a2ui-json>") :]
+        )
+        json_string = final_response_content[
+            start + len("<a2ui-json>") : end
+        ]
+
     parts = []
+    if text_part and text_part.strip():
+        parts.append(types.Part(root=types.TextPart(text=text_part.strip())))
 
-    # --- Try SDK v0.9 format: <a2ui-json>...</a2ui-json> ---
-    a2ui_tag_pattern = re.compile(
-        r"<a2ui-json>\s*(.*?)\s*</a2ui-json>", re.DOTALL
-    )
-    matches = a2ui_tag_pattern.findall(text)
-
-    if matches:
-        # Extract text before the first <a2ui-json> tag
-        first_tag_pos = text.find("<a2ui-json>")
-        text_content = text[:first_tag_pos].strip() if first_tag_pos > 0 else ""
-
-        if text_content:
-            parts.append({"text": text_content})
-
-        for match in matches:
-            data = extract_json_payload(match)
-            if data:
-                parts.append(
-                    {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
-                )
-
-        if parts:
-            return parts
-
-    # --- Fallback: Legacy ---a2ui_JSON--- delimiter ---
-    if "---a2ui_JSON---" in text:
-        text_content, json_str = text.split("---a2ui_JSON---", 1)
-        text_content = text_content.strip()
-
-        if text_content:
-            parts.append({"text": text_content})
-
-        data = extract_json_payload(json_str)
+    if json_string and json_string.strip():
+        data = extract_json_payload(json_string)
         if data:
-            parts.append(
-                {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
-            )
+            messages = []
+            if isinstance(data, dict) and "a2ui_messages" in data:
+                messages = data["a2ui_messages"]
+            elif isinstance(data, list):
+                messages = data
+            elif isinstance(data, dict):
+                messages = [data]
 
-        if parts:
-            return parts
-
-    # --- Fallback: Try to find raw JSON with a2ui_messages key ---
-    if "a2ui_messages" in text:
-        # Try to extract JSON object containing a2ui_messages
-        idx = text.find("a2ui_messages")
-        # Walk backward to find the opening {
-        start = text.rfind("{", 0, idx)
-        if start != -1:
-            data = extract_json_payload(text[start:])
-            if data:
-                text_before = text[:start].strip()
-                if text_before:
-                    parts.append({"text": text_before})
+            for msg in messages:
                 parts.append(
-                    {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
+                    types.Part(
+                        root=types.DataPart(
+                            data=msg,
+                            metadata={"mimeType": "application/json+a2ui"},
+                        )
+                    )
                 )
-                return parts
 
-    # --- No A2UI payload found, return as plain text ---
-    parts.append({"text": text.strip()})
+    if not parts:
+        parts.append(
+            types.Part(root=types.TextPart(text=final_response_content.strip()))
+        )
+
     return parts
+
+
+process_a2ui_response = format_a2ui_parts

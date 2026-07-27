@@ -141,63 +141,9 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
             )
             return
 
-        # Split conversational text from A2UI JSON payload
-        text_part = final_response_content
-        json_string = None
+        from app.a2ui_config import format_a2ui_parts
 
-        if "---a2ui_JSON---" in final_response_content:
-            text_part, json_string = final_response_content.split(
-                "---a2ui_JSON---", 1
-            )
-        elif (
-            "<a2ui-json>" in final_response_content
-            and "</a2ui-json>" in final_response_content
-        ):
-            start = final_response_content.find("<a2ui-json>")
-            end = final_response_content.find("</a2ui-json>")
-            text_part = (
-                final_response_content[:start]
-                + final_response_content[end + len("</a2ui-json>") :]
-            )
-            json_string = final_response_content[
-                start + len("<a2ui-json>") : end
-            ]
-
-        parts = []
-        if text_part and text_part.strip():
-            parts.append(types.Part(root=types.TextPart(text=text_part.strip())))
-
-        if json_string and json_string.strip():
-            from app.a2ui_config import extract_json_payload
-            data = extract_json_payload(json_string)
-            if data:
-                if isinstance(data, dict) and "a2ui_messages" in data:
-                    for msg in data["a2ui_messages"]:
-                        parts.append(
-                            types.Part(
-                                root=types.DataPart(
-                                    data=msg,
-                                    metadata={
-                                        "mimeType": "application/json+a2ui"
-                                    },
-                                )
-                            )
-                        )
-                else:
-                    parts.append(
-                        types.Part(
-                            root=types.DataPart(
-                                data=data,
-                                metadata={"mimeType": "application/json+a2ui"},
-                            )
-                        )
-                    )
-
-        if not parts:
-            parts.append(
-                types.Part(root=types.TextPart(text=final_response_content))
-            )
-
+        parts = format_a2ui_parts(final_response_content)
         await updater.add_artifact(parts, name="response")
         await updater.complete()
 
