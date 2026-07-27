@@ -56,6 +56,13 @@ def setup_telemetry() -> str | None:
         )
 
     # Set up OpenTelemetry exporters for Cloud Trace and Cloud Logging
+    if os.environ.get("DISABLE_OTEL_TRACING") == "true" or not os.environ.get(
+        "GCP_CREDENTIALS"
+    ):
+        logging.info("Skipping OpenTelemetry exporters setup for test environment.")
+        _setup_instrumentation_lib_if_installed()
+        return bucket
+
     try:
         credentials, project_id = google.auth.default()
         otel_hooks = get_gcp_exporters(
