@@ -69,10 +69,7 @@ def start_server() -> subprocess.Popen[str]:
     env = os.environ.copy()
     env["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
     env["GCP_PROJECT"] = "hackathon-y26"
-    env["DISABLE_OTEL_TRACING"] = "true"
-    if not env.get("GOOGLE_APPLICATION_CREDENTIALS") and not env.get("GCP_CREDENTIALS"):
-        env["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
-        env["MOCK_LLM_FOR_TEST"] = "TRUE"
+    env["MOCK_LLM_FOR_TEST"] = "TRUE"
 
     process = subprocess.Popen(
         command,

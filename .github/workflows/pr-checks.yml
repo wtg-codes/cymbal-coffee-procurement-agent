@@ -10,7 +10,7 @@ jobs:
 
     env:
       PYTHONPATH: '.'
-      GOOGLE_GENAI_USE_VERTEXAI: 'false'
+      GOOGLE_GENAI_USE_VERTEXAI: 'true'
       GOOGLE_CLOUD_PROJECT: 'hackathon-y26'
       GCP_PROJECT: 'hackathon-y26'
       CLOUDSDK_CORE_PROJECT: 'hackathon-y26'
