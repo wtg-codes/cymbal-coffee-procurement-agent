@@ -171,17 +171,9 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
             parts.append(types.Part(root=types.TextPart(text=text_part.strip())))
 
         if json_string and json_string.strip():
-            clean_json = json_string.strip()
-            if clean_json.startswith("```json"):
-                clean_json = clean_json[7:]
-            if clean_json.startswith("```"):
-                clean_json = clean_json[3:]
-            if clean_json.endswith("```"):
-                clean_json = clean_json[:-3]
-            clean_json = clean_json.strip()
-
-            try:
-                data = json.loads(clean_json)
+            from app.a2ui_config import extract_json_payload
+            data = extract_json_payload(json_string)
+            if data:
                 if isinstance(data, dict) and "a2ui_messages" in data:
                     for msg in data["a2ui_messages"]:
                         parts.append(
@@ -203,8 +195,6 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
                             )
                         )
                     )
-            except Exception as e:
-                logger.error("Failed to parse A2UI JSON: %s", e)
 
         if not parts:
             parts.append(

@@ -103,30 +103,50 @@ def get_a2ui_extensions():
     ]
 
 
+def extract_json_payload(json_str: str) -> dict | None:
+    """Robustly extract and parse JSON payload even with surrounding markdown or comments."""
+    if not json_str:
+        return None
+    clean = json_str.strip()
+    if clean.startswith("```json"):
+        clean = clean[7:]
+    if clean.startswith("```"):
+        clean = clean[3:]
+    if clean.endswith("```"):
+        clean = clean[:-3]
+    clean = clean.strip()
+
+    start_idx = clean.find("{")
+    end_idx = clean.rfind("}")
+    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+        candidate = clean[start_idx : end_idx + 1]
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+    try:
+        return json.loads(clean)
+    except Exception as e:
+        logger.error(f"Failed to parse A2UI JSON: {e}")
+        return None
+
+
 def process_a2ui_response(text: str):
     """Parse model text output into A2A-compatible parts."""
     parts = []
     if "---a2ui_JSON---" in text:
         text_content, json_str = text.split("---a2ui_JSON---", 1)
         text_content = text_content.strip()
-        json_str = json_str.strip()
-        if json_str.startswith("```json"):
-            json_str = json_str[7:]
-        if json_str.endswith("```"):
-            json_str = json_str[:-3]
-        json_str = json_str.strip()
 
         if text_content:
             parts.append({"text": text_content})
 
-        if json_str:
-            try:
-                data = json.loads(json_str)
-                parts.append(
-                    {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
-                )
-            except Exception as e:
-                logger.error(f"Failed to parse A2UI JSON: {e}")
+        data = extract_json_payload(json_str)
+        if data:
+            parts.append(
+                {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
+            )
     else:
         parts.append({"text": text.strip()})
 
