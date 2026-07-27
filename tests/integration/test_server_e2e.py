@@ -67,8 +67,7 @@ def start_server() -> subprocess.Popen[str]:
         "8000",
     ]
     env = os.environ.copy()
-    env["INTEGRATION_TEST"] = "TRUE"
-    if "GOOGLE_APPLICATION_CREDENTIALS" not in env and "GCP_CREDENTIALS" not in env:
+    if not env.get("GOOGLE_APPLICATION_CREDENTIALS") and not env.get("GCP_CREDENTIALS"):
         env["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
         env["MOCK_LLM_FOR_TEST"] = "TRUE"
 
