@@ -244,6 +244,20 @@ def get_simulation_status() -> dict[str, Any]:
     }
 
 
+def resolve_store_id(store_id: str) -> str | None:
+    """Fuzzy-resolve store_id or store name to internal store key."""
+    if not store_id:
+        return "downtown-flagship"
+    s = store_id.lower().strip()
+    if s in STORE_TELEMETRY:
+        return s
+    if "downtown" in s or "101" in s or "flagship" in s:
+        return "downtown-flagship"
+    if "airport" in s or "sfo" in s or "102" in s or "express" in s:
+        return "airport-express"
+    return None
+
+
 def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
     check_simulation_timeout()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -257,9 +271,18 @@ def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
             "simulation": get_simulation_status(),
         }
 
-    store = STORE_TELEMETRY.get(store_id)
+    key = resolve_store_id(store_id)
+    store = STORE_TELEMETRY.get(key) if key else None
     if not store:
         return {"error": f"Store ID '{store_id}' not found."}
+
+    return {
+        "store_id": key,
+        "store_name": store["store_name"],
+        "timestamp": timestamp,
+        "bins": store["bins"],
+        "simulation": get_simulation_status(),
+    }
 
     return {
         "store_id": store_id,
@@ -275,7 +298,8 @@ def simulate_sensor_event(
     item_key: str = "dark-roast-beans",
     new_level_percent: float = 12.0,
 ) -> dict[str, Any]:
-    store = STORE_TELEMETRY.get(store_id)
+    key = resolve_store_id(store_id) or "downtown-flagship"
+    store = STORE_TELEMETRY.get(key)
     if not store or item_key not in store["bins"]:
         return {"error": f"Item '{item_key}' not found."}
 
@@ -288,7 +312,7 @@ def simulate_sensor_event(
 
     return {
         "event": "IOT_SENSOR_TELEMETRY_UPDATED",
-        "store_id": store_id,
+        "store_id": key,
         "item_name": target["item_name"],
         "new_level_percent": target["level_percent"],
         "status": target["status"],
@@ -296,11 +320,14 @@ def simulate_sensor_event(
 
 
 def detect_equipment_anomalies(store_id: str = "downtown-flagship") -> dict[str, Any]:
-    store = STORE_TELEMETRY.get(store_id)
+    key = resolve_store_id(store_id)
+    if not key:
+        return {"error": f"Store ID '{store_id}' not found."}
+    store = STORE_TELEMETRY.get(key)
     if not store:
         return {"error": f"Store ID '{store_id}' not found."}
     return {
-        "store_id": store_id,
+        "store_id": key,
         "health_status": "ALL_SYSTEMS_HEALTHY",
         "detected_anomalies": [],
     }
