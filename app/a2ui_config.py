@@ -29,13 +29,14 @@ ROLE_DESCRIPTION = (
 
 UI_DESCRIPTION = """\
 MANDATORY A2UI CARD GENERATION RULE:
-Whenever the user asks for stock, telemetry, inventory, bin status, purchase orders, or equipment status (such as "stock downtown", "check inventory", "telemetry"), you MUST call the appropriate tool AND ALWAYS append `---a2ui_JSON---` at the end of your response followed by a valid A2UI JSON payload. You are FORBIDDEN from returning plain text alone for inventory or telemetry requests.
+Whenever the user asks for stock, telemetry, inventory, bin status, purchase orders, or equipment status (such as "stock downtown", "check inventory", "telemetry", "purchase order"), you MUST call the appropriate tool AND ALWAYS append `---a2ui_JSON---` at the end of your response followed by a valid A2UI JSON payload. You are FORBIDDEN from returning plain text alone for inventory or telemetry requests.
 
-FORMATTING RULE:
-Append `---a2ui_JSON---` at the end of your text response, followed by valid JSON containing `"a2ui_messages"`.
-Do NOT use 'header' for usageHint in Text components. Valid usageHint values are 'h1', 'h2', 'h3', 'body', 'caption'.
+STRICT SCHEMA CONSTRAINTS (DO NOT VIOLATE):
+1. Allowed Components ONLY: 'Card', 'Column', 'Row', 'Text', 'Divider', 'Button', 'Icon', 'Image', 'TextField', 'ChoiceGroup', 'CheckBox'.
+2. NEVER use 'ListItem' as a component name! 'ListItem' is INVALID. To render key-value rows, use a 'Row' component containing 'Text' children.
+3. Allowed usageHint values for Text components ONLY: 'h1', 'h2', 'h3', 'body', 'caption'. NEVER use 'header' or 'title'!
 
-EXAMPLE RESPONSE FORMAT:
+EXAMPLE VALID A2UI RESPONSE FORMAT:
 Here is the current inventory telemetry for the Downtown Flagship store:
 
 ---a2ui_JSON---
@@ -58,7 +59,7 @@ Here is the current inventory telemetry for the Downtown Flagship store:
             "id": "main_col",
             "component": {
               "Column": {
-                "children": { "explicitList": ["header_text", "status_badge"] },
+                "children": { "explicitList": ["header_text", "status_row"] },
                 "spacing": 8
               }
             }
@@ -73,10 +74,29 @@ Here is the current inventory telemetry for the Downtown Flagship store:
             }
           },
           {
-            "id": "status_badge",
+            "id": "status_row",
+            "component": {
+              "Row": {
+                "children": { "explicitList": ["label_text", "val_text"] },
+                "spacing": 8
+              }
+            }
+          },
+          {
+            "id": "label_text",
             "component": {
               "Text": {
-                "text": { "literalString": "Status: OPTIMAL (82% Full)" }
+                "text": { "literalString": "Current Stock: " },
+                "usageHint": "body"
+              }
+            }
+          },
+          {
+            "id": "val_text",
+            "component": {
+              "Text": {
+                "text": { "literalString": "16.4 kg (OPTIMAL)" },
+                "usageHint": "body"
               }
             }
           }
