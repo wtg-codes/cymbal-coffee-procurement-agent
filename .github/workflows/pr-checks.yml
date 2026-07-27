@@ -13,8 +13,7 @@ jobs:
       GOOGLE_GENAI_USE_VERTEXAI: 'false'
       GOOGLE_CLOUD_PROJECT: 'hackathon-y26'
       GOOGLE_CLOUD_LOCATION: 'global'
-
-
+      GCP_CREDENTIALS: '${{ secrets.GCP_CREDENTIALS }}'
 
     permissions:
       contents: read
@@ -39,20 +38,16 @@ jobs:
         run: uv run ruff check .
 
       - name: Authenticate to Google Cloud
-        if: "${{ secrets.GCP_CREDENTIALS != '' }}"
+        if: env.GCP_CREDENTIALS != ''
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
 
       - name: Run Tests with Coverage
         run: uv run pytest --cov=app --cov-fail-under=80
 
       - name: Run Evaluator
-        run: |
-          if [ -n "${{ secrets.GCP_CREDENTIALS }}" ]; then
-            uvx google-agents-cli eval run
-          else
-            echo "Skipping evals: GCP_CREDENTIALS secret not configured in repository."
-          fi
+        if: env.GCP_CREDENTIALS != ''
+        run: uvx google-agents-cli eval run
+
 
