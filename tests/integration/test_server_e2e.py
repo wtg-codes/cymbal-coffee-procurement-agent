@@ -68,6 +68,9 @@ def start_server() -> subprocess.Popen[str]:
     ]
     env = os.environ.copy()
     env["INTEGRATION_TEST"] = "TRUE"
+    if "GOOGLE_APPLICATION_CREDENTIALS" not in env and "GCP_CREDENTIALS" not in env:
+        env["GOOGLE_GENAI_USE_VERTEXAI"] = "false"
+
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,

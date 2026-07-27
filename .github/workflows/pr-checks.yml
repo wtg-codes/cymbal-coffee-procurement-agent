@@ -1,19 +1,18 @@
 name: PR Checks
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches: [main]
+  pull_request:
 
 jobs:
   test:
     runs-on: ubuntu-latest
 
     env:
-      GOOGLE_GENAI_USE_VERTEXAI: 'true'
+      GOOGLE_GENAI_USE_VERTEXAI: 'false'
       GOOGLE_CLOUD_PROJECT: 'hackathon-y26'
       GOOGLE_CLOUD_LOCATION: 'global'
+
 
     permissions:
       contents: read
