@@ -86,11 +86,10 @@ async def attach_a2a_routes(
     ``APP_URL``). Call once per app — typically in a FastAPI ``lifespan``, since
     the card is built asynchronously; repeated calls register duplicate routes.
     """
-    default_url = os.getenv(
-        "APP_URL",
-        "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app",
-    )
-    resolved_app_url = app_url or default_url
+    if "APP_URL" not in os.environ or "0.0.0.0" in os.environ["APP_URL"]:
+        os.environ["APP_URL"] = "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
+
+    resolved_app_url = app_url or os.environ["APP_URL"]
     resolved_agent_version = agent_version or os.getenv("AGENT_VERSION", "0.1.0")
     resolved_capabilities = capabilities or _default_capabilities()
 

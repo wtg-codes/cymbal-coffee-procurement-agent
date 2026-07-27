@@ -31,8 +31,8 @@ from app.tools.telemetry import (
 load_dotenv()
 if not os.getenv("GOOGLE_CLOUD_PROJECT"):
     os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
-if not os.getenv("GCP_PROJECT"):
-    os.environ["GCP_PROJECT"] = "hackathon-y26"
+if not os.getenv("APP_URL") or "0.0.0.0" in os.environ.get("APP_URL", ""):
+    os.environ["APP_URL"] = "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
 
 vertexai.init(
     project=os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
