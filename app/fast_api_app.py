@@ -46,7 +46,15 @@ try:
     logger = logging_client.logger(__name__)
 except Exception:
     import logging
+    from unittest.mock import MagicMock
 
+    import google.auth.credentials
+
+    mock_creds = MagicMock(spec=google.auth.credentials.Credentials)
+    google.auth.default = lambda *args, **kwargs: (
+        mock_creds,
+        os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
+    )
     logger = logging.getLogger(__name__)
 
 allow_origins = (
