@@ -8,13 +8,15 @@ from google.genai import types
 
 from app.a2ui_config import a2ui_system_prompt
 from app.tools import (
-    get_bin_telemetry,
-    simulate_sensor_event,
-    detect_equipment_anomalies,
     analyze_consumption_patterns,
+    check_backend_status,
     create_purchase_order,
-    send_customer_notification,
+    detect_equipment_anomalies,
+    generate_telemetry_chart,
+    get_bin_telemetry,
     notify_store_manager,
+    send_customer_notification,
+    simulate_sensor_event,
 )
 
 
@@ -27,7 +29,9 @@ root_agent = Agent(
     ),
     instruction=a2ui_system_prompt,
     tools=[
+        check_backend_status,
         get_bin_telemetry,
+        generate_telemetry_chart,
         simulate_sensor_event,
         detect_equipment_anomalies,
         analyze_consumption_patterns,

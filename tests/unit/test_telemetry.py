@@ -71,3 +71,13 @@ def test_detect_equipment_anomalies_invalid():
     """Test detect_equipment_anomalies with non-existent store."""
     res = detect_equipment_anomalies("non-existent-store")
     assert "error" in res
+
+
+def test_check_backend_status():
+    """Test check_backend_status and check_cloud_run_backend_health structure."""
+    from app.tools.telemetry import check_backend_status
+    res = check_backend_status()
+    assert "status" in res
+    assert "dashboard_url" in res
+    assert "health_endpoint" in res
+    assert res["status"] in ("ONLINE", "OFFLINE")

@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 
 from a2ui.a2a.extension import get_a2ui_agent_extension
 from a2ui.basic_catalog.provider import BasicCatalog
@@ -27,154 +28,77 @@ ROLE_DESCRIPTION = (
     "Always assist store managers with concise, actionable intelligence."
 )
 
-# --- Gauge Chart HTML Template ---
-GAUGE_CHART_TEMPLATE = r"""
-<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
-<style>
-  body{font-family:'Google Sans',sans-serif;margin:0;padding:12px;background:transparent;color:#e8eaed}
-  .grid{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-  .bin{text-align:center;flex:1;min-width:100px}
-  .gauge{position:relative;width:80px;height:80px;margin:0 auto 8px}
-  .gauge svg{transform:rotate(-90deg)}
-  .gauge circle{fill:none;stroke-width:8}
-  .gauge .bg{stroke:#333}
-  .gauge .fill{stroke-linecap:round;transition:stroke-dashoffset 0.5s}
-  .gauge .val{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:16px;font-weight:700}
-  .name{font-size:13px;font-weight:500;margin-bottom:2px}
-  .detail{font-size:11px;color:#9aa0a6}
-  .status{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}
-  .OPTIMAL{background:#34a853}.WARNING{background:#fbbc04}.CRITICAL{background:#ea4335}
-</style>
-<div class="grid">BINS_HTML</div>
-<script>
-document.querySelectorAll('.gauge .fill').forEach(c=>{
-  const r=c.r.baseVal.value,circ=2*Math.PI*r,pct=parseFloat(c.dataset.pct);
-  c.style.strokeDasharray=circ;c.style.strokeDashoffset=circ-(pct/100)*circ;
-});
-</script>
-"""
-
-BIN_ITEM_TEMPLATE = r"""
-<div class="bin">
-  <div class="gauge">
-    <svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="42"/><circle class="fill" cx="50" cy="50" r="42" stroke="COLOR" data-pct="PCT"/></svg>
-    <div class="val">PCT%</div>
-  </div>
-  <div class="name">NAME</div>
-  <div class="detail">WEIGHT kg / CAP kg</div>
-  <div class="detail"><span class="status STATUS"></span>STATUS · RATE kg/hr</div>
-</div>
-"""
-
-# --- UI Description (10x Redesign) ---
+# ---------------------------------------------------------------------------
+# UI_DESCRIPTION — appended AFTER the SDK's auto-injected schema + workflow
+# rules. The SDK already tells the model the full component catalog and the
+# <a2ui-json> tag format.  We only need to add domain-specific card design
+# guidance and remind the model of strict schema pitfalls.
+# ---------------------------------------------------------------------------
 UI_DESCRIPTION = """\
-MANDATORY A2UI CARD GENERATION RULE:
-Whenever the user asks for stock, telemetry, inventory, bin status, purchase orders, equipment status, \
-consumption, or velocity (such as "stock downtown", "check inventory", "telemetry", "purchase order", \
-"detect anomalies", "consumption patterns"), you MUST call the appropriate tool AND ALWAYS append \
-`---a2ui_JSON---` at the end of your response followed by a valid A2UI JSON payload.
-You are FORBIDDEN from returning plain text alone for these requests.
+INTERACTIVE CARD DESIGN RULES (apply to EVERY response with tool data):
 
-STRICT SCHEMA CONSTRAINTS (DO NOT VIOLATE):
-1. Allowed Components ONLY: 'Card', 'Column', 'Row', 'Text', 'Divider', 'Button', 'TextField', 'MultipleChoice', 'WebFrameSrcdoc'.
-2. NEVER use 'ListItem' as a component name! 'ListItem' is INVALID. Use 'Row' with 'Text' children for key-value pairs.
-3. Allowed usageHint values for Text components ONLY: 'h1', 'h2', 'h3', 'body', 'caption'. NEVER use 'header' or 'title'!
-4. Button components MUST reference a separate Text component via 'child' (string ID). NEVER put text directly on Button.
-5. Button 'action' MUST include 'name' and 'context' array. Each context item has 'key' and 'value' (with 'literalString' or 'path').
-6. The 'context' array MUST include an item with key 'message' containing a human-readable description of the action.
+1. ALWAYS render tool results as rich A2UI cards — never return plain text alone.
+2. ALWAYS include action Buttons at the bottom of cards so users can take the next step without typing.
+3. Use the FULL A2UI component catalog as needed:
+   - Layout: Card, Column, Row, Divider, Tabs
+   - Content: Text, Image, Icon
+   - Interactive: Button, TextField, MultipleChoice, CheckBox, Slider, DateTimeInput
+   - Embedded: WebFrameSrcdoc (inline HTML charts/gauges with CSP meta tag)
+4. Design cards appropriate to the data — choose components that best present the information.
+5. Use REAL data from tool responses. Do NOT hardcode example values.
 
-INTERACTIVE CARD DESIGN RULES:
-- ALWAYS include action buttons at the bottom of inventory/telemetry cards so users can take immediate action.
-- For inventory cards: include buttons for "Reorder Low Items", "Run Anomaly Scan", "Analyze Velocity", "Notify Manager".
-- For PO creation: FIRST show a confirmation card with order details, TextField for quantity, MultipleChoice for urgency, and Confirm/Cancel buttons.
-- For anomaly reports: include buttons for "Alert Manager" and "Rescan".
-- Group buttons in Row components with distribution "spaceAround".
+COMPONENT DESIGN GUIDANCE BY FLOW:
+- Inventory telemetry → Card with title property + Column + Rows with mainAxisAlignment 'spaceBetween' for each bin (item name, level %, status: OPTIMAL/WARNING/CRITICAL) + Divider + Row of action Buttons (Analyze Velocity, Scan Anomalies, Notify Manager).
+- Purchase order confirmation → Card with title + summary rows (item, store, quantity, ETA) + TextField for quantity + MultipleChoice for urgency (EXPEDITED/STANDARD) + Confirm/Cancel Buttons.
+- Equipment anomalies → Card with title + anomaly details per bin + status (OPTIMAL/WARNING/CRITICAL) + Alert Manager and Rescan Buttons.
+- Consumption analysis → Card with velocity data + projected stockout time + Create Expedited PO Button.
 
-EXAMPLE — INVENTORY DASHBOARD WITH GAUGES AND BUTTONS:
-Here is the inventory telemetry for Downtown Flagship:
+HANDLING CHART & DATA VISUALIZATION REQUESTS:
+When the user asks for a chart, graph, bar chart, pie chart, donut chart, or visual telemetry trends (e.g., "show a chart of milk consumption", "pie chart of stock", "graph telemetry"):
+1. ALWAYS call the `generate_telemetry_chart(store_id="...", chart_type="bar"|"pie"|"donut"|"line")` tool first!
+2. Take the `html_srcdoc` returned by the tool and include a `WebFrameSrcdoc` component inside your A2UI Card!
+3. Structure the WebFrameSrcdoc component as:
+   {
+     "id": "chart_iframe",
+     "type": "WebFrameSrcdoc",
+     "height": 240,
+     "srcdoc": { "literalString": "<html_srcdoc from tool output>" }
+   }
 
----a2ui_JSON---
-{
-  "a2ui_messages": [
-    { "beginRendering": { "surfaceId": "main", "root": "root_card" } },
-    {
-      "surfaceUpdate": {
-        "surfaceId": "main",
-        "components": [
-          { "id": "root_card", "component": { "Card": { "child": "main_col" } } },
-          { "id": "main_col", "component": { "Column": { "children": { "explicitList": ["header_text", "ts_text", "div1", "gauge_frame", "div2", "btn_row1", "btn_row2"] }, "spacing": 12 } } },
-          { "id": "header_text", "component": { "Text": { "text": { "literalString": "Downtown Flagship — Inventory Status" }, "usageHint": "h2" } } },
-          { "id": "ts_text", "component": { "Text": { "text": { "literalString": "Last Updated: 2026-07-27 17:59" }, "usageHint": "caption" } } },
-          { "id": "div1", "component": { "Divider": { "axis": "horizontal" } } },
-          { "id": "gauge_frame", "component": { "WebFrameSrcdoc": { "srcdoc": { "literalString": "GAUGE_HTML_HERE" }, "height": 180 } } },
-          { "id": "div2", "component": { "Divider": { "axis": "horizontal" } } },
-          { "id": "btn_row1", "component": { "Row": { "children": { "explicitList": ["btn_reorder", "btn_anomaly"] }, "distribution": "spaceAround" } } },
-          { "id": "btn_row2", "component": { "Row": { "children": { "explicitList": ["btn_velocity", "btn_notify"] }, "distribution": "spaceAround" } } },
-          { "id": "btn_reorder", "component": { "Button": { "child": "btn_reorder_t", "action": { "name": "reorder_low", "context": [{ "key": "message", "value": { "literalString": "Reorder low stock items for downtown-flagship" } }, { "key": "store_id", "value": { "literalString": "downtown-flagship" } }] } } } },
-          { "id": "btn_reorder_t", "component": { "Text": { "text": { "literalString": "🛒 Reorder Low Items" } } } },
-          { "id": "btn_anomaly", "component": { "Button": { "child": "btn_anomaly_t", "action": { "name": "run_anomaly_scan", "context": [{ "key": "message", "value": { "literalString": "Run equipment anomaly scan for downtown-flagship" } }, { "key": "store_id", "value": { "literalString": "downtown-flagship" } }] } } } },
-          { "id": "btn_anomaly_t", "component": { "Text": { "text": { "literalString": "🔍 Run Anomaly Scan" } } } },
-          { "id": "btn_velocity", "component": { "Button": { "child": "btn_velocity_t", "action": { "name": "analyze_velocity", "context": [{ "key": "message", "value": { "literalString": "Analyze consumption velocity for downtown-flagship" } }, { "key": "store_id", "value": { "literalString": "downtown-flagship" } }] } } } },
-          { "id": "btn_velocity_t", "component": { "Text": { "text": { "literalString": "📊 Analyze Velocity" } } } },
-          { "id": "btn_notify", "component": { "Button": { "child": "btn_notify_t", "action": { "name": "notify_manager", "context": [{ "key": "message", "value": { "literalString": "Notify store manager for downtown-flagship" } }, { "key": "store_id", "value": { "literalString": "downtown-flagship" } }] } } } },
-          { "id": "btn_notify_t", "component": { "Text": { "text": { "literalString": "📢 Notify Manager" } } } }
-        ]
-      }
-    }
+HANDLING CLOUD RUN BACKEND & SYNTHETIC DATA HEALTH:
+- If a tool output returns `cloud_run_backend` with `status: "OFFLINE"` or if the user asks "is the backend up?", "check backend status", "is cloud run running?":
+  1. Render a prominent Warning A2UI Card titled "⚠️ Cloud Run Telemetry Backend Offline".
+  2. Inform the user that the synthetic telemetry & dashboard backend service at `https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app` is currently unreachable or down.
+  3. Explain step-by-step how to start or redeploy the Cloud Run service (`gcloud run deploy` or starting the service in Google Cloud Console).
+  4. Include action Buttons: "Check Backend Status", "Retry Telemetry Fetch", "Open Cloud Run Dashboard".
+
+HANDLING RANDOM DATA & GENERAL TELEMETRY QUESTIONS:
+When users ask general or ad-hoc data questions (e.g. "what is the temperature of bin 2?", "compare consumption between stores"):
+- Execute available tools to fetch or calculate real telemetry data.
+- Present results in a Card using key-value Text rows, status badges (OPTIMAL / WARNING / CRITICAL), and next-step action Buttons.
+
+STRICT SCHEMA CONSTRAINTS (these are the most common LLM mistakes):
+1. NEVER use ListItem — use Row with Text children for key-value pairs.
+2. Text usageHint must be one of: h1, h2, h3, h4, body, caption. NEVER use 'header' or 'title'.
+3. Button MUST reference a separate Text component via 'child' (string ID). Never put text directly on Button.
+4. Button action MUST have 'name' (string) and 'context' (array of objects with 'key' and 'value').
+5. The 'context' array MUST include an item with key 'message' containing a literalString that describes the action in human-readable form. This message is echoed back when the user clicks.
+6. Card accepts only a single 'child' ID (typically a Column).
+7. Column/Row children MUST be wrapped: {"children": {"explicitList": ["id1","id2"]}}.
+8. TextField is the correct name — NEVER use TextInput.
+9. CheckBox uses 'value' property — NEVER use 'selected' or 'checked'.
+10. MultipleChoice options: label must be {"literalString": "text"}, value must be a plain string.
+11. Within components list: root component MUST be FIRST. Parents MUST appear before children.
+
+BUTTON ACTION CONTEXT EXAMPLE:
+When creating buttons, include all relevant context so the agent can act without asking again:
+"action": {
+  "name": "reorder_low",
+  "context": [
+    {"key": "message", "value": {"literalString": "Reorder low stock items for downtown-flagship"}},
+    {"key": "store_id", "value": {"literalString": "downtown-flagship"}}
   ]
 }
-
-EXAMPLE — PO CONFIRMATION WITH FORM INPUTS:
-When creating a purchase order, FIRST show a confirmation card BEFORE executing the order:
-
----a2ui_JSON---
-{
-  "a2ui_messages": [
-    { "beginRendering": { "surfaceId": "main", "root": "po_card" } },
-    {
-      "surfaceUpdate": {
-        "surfaceId": "main",
-        "components": [
-          { "id": "po_card", "component": { "Card": { "child": "po_col" } } },
-          { "id": "po_col", "component": { "Column": { "children": { "explicitList": ["po_title", "div_a", "item_row", "store_row", "stock_row", "eta_row", "div_b", "qty_field", "urgency_select", "div_c", "confirm_row"] }, "spacing": 10 } } },
-          { "id": "po_title", "component": { "Text": { "text": { "literalString": "⚠️ Confirm Purchase Order" }, "usageHint": "h2" } } },
-          { "id": "div_a", "component": { "Divider": { "axis": "horizontal" } } },
-          { "id": "item_row", "component": { "Row": { "children": { "explicitList": ["item_lbl", "item_val"] } } } },
-          { "id": "item_lbl", "component": { "Text": { "text": { "literalString": "Item:" }, "usageHint": "body" } } },
-          { "id": "item_val", "component": { "Text": { "text": { "literalString": "Organic Dark Roast Beans" }, "usageHint": "body" } } },
-          { "id": "store_row", "component": { "Row": { "children": { "explicitList": ["store_lbl", "store_val"] } } } },
-          { "id": "store_lbl", "component": { "Text": { "text": { "literalString": "Store:" }, "usageHint": "body" } } },
-          { "id": "store_val", "component": { "Text": { "text": { "literalString": "Downtown Flagship (#101)" }, "usageHint": "body" } } },
-          { "id": "stock_row", "component": { "Row": { "children": { "explicitList": ["stock_lbl", "stock_val"] } } } },
-          { "id": "stock_lbl", "component": { "Text": { "text": { "literalString": "Current Stock:" }, "usageHint": "body" } } },
-          { "id": "stock_val", "component": { "Text": { "text": { "literalString": "3.0 kg (15%)" }, "usageHint": "body" } } },
-          { "id": "eta_row", "component": { "Row": { "children": { "explicitList": ["eta_lbl", "eta_val"] } } } },
-          { "id": "eta_lbl", "component": { "Text": { "text": { "literalString": "Stockout ETA:" }, "usageHint": "body" } } },
-          { "id": "eta_val", "component": { "Text": { "text": { "literalString": "~2 hours" }, "usageHint": "caption" } } },
-          { "id": "div_b", "component": { "Divider": { "axis": "horizontal" } } },
-          { "id": "qty_field", "component": { "TextField": { "label": { "literalString": "Order Quantity (kg)" }, "text": { "path": "/order/quantity" } } } },
-          { "id": "urgency_select", "component": { "MultipleChoice": { "selections": { "path": "/order/urgency" }, "options": [{ "label": { "literalString": "EXPEDITED (2hr delivery)" }, "value": "EXPEDITED" }, { "label": { "literalString": "STANDARD (24hr delivery)" }, "value": "STANDARD" }] } } },
-          { "id": "div_c", "component": { "Divider": { "axis": "horizontal" } } },
-          { "id": "confirm_row", "component": { "Row": { "children": { "explicitList": ["btn_confirm", "btn_cancel"] }, "distribution": "spaceAround" } } },
-          { "id": "btn_confirm", "component": { "Button": { "child": "btn_confirm_t", "action": { "name": "confirm_purchase_order", "context": [{ "key": "message", "value": { "literalString": "Confirm and create purchase order" } }, { "key": "store_id", "value": { "literalString": "downtown-flagship" } }, { "key": "item_key", "value": { "literalString": "dark-roast-beans" } }, { "key": "quantity", "value": { "path": "/order/quantity" } }, { "key": "urgency", "value": { "path": "/order/urgency" } }] } } } },
-          { "id": "btn_confirm_t", "component": { "Text": { "text": { "literalString": "✅ Confirm Order" } } } },
-          { "id": "btn_cancel", "component": { "Button": { "child": "btn_cancel_t", "action": { "name": "cancel_order", "context": [{ "key": "message", "value": { "literalString": "Cancel purchase order" } }] } } } },
-          { "id": "btn_cancel_t", "component": { "Text": { "text": { "literalString": "❌ Cancel" } } } }
-        ]
-      }
-    }
-  ]
-}
-
-IMPORTANT: For the WebFrameSrcdoc gauge chart, generate the inline HTML with SVG circular gauges. Use colors:
-- Green (#34a853) for OPTIMAL status (level > 25%)
-- Amber (#fbbc04) for WARNING status (15% < level <= 25%)
-- Red (#ea4335) for CRITICAL status (level <= 15%)
-Each gauge shows the fill percentage, item name, weight, and consumption rate.
-The HTML MUST include: <meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
-
-IMPORTANT: Always use the ACTUAL data returned by the tools. Do NOT hardcode values from the examples.
-Replace store names, item names, percentages, weights, and statuses with real tool output data.
 """
 
 a2ui_system_prompt = schema_manager.generate_system_prompt(
@@ -194,58 +118,131 @@ def get_a2ui_extensions():
     ]
 
 
-def build_gauge_html(bins_data: list[dict]) -> str:
-    """Build inline HTML gauge chart from bin telemetry data."""
-    bins_html = ""
-    for b in bins_data:
-        pct = b.get("level_percent", 0)
-        status = b.get("status", "OPTIMAL")
-        color = "#34a853" if status == "OPTIMAL" else "#fbbc04" if status == "WARNING" else "#ea4335"
-        item_html = BIN_ITEM_TEMPLATE
-        item_html = item_html.replace("COLOR", color)
-        item_html = item_html.replace("PCT", str(round(pct)))
-        item_html = item_html.replace("NAME", b.get("item_name", "Unknown"))
-        item_html = item_html.replace("WEIGHT", str(b.get("current_weight_kg", 0)))
-        item_html = item_html.replace("CAP", str(b.get("max_capacity_kg", 20)))
-        item_html = item_html.replace("STATUS", status)
-        item_html = item_html.replace("RATE", str(b.get("hourly_consumption_kg", 0)))
-        bins_html += item_html
-
-    return GAUGE_CHART_TEMPLATE.replace("BINS_HTML", bins_html)
+def _fix_json_string(s: str) -> str:
+    """Attempt to fix common LLM JSON mistakes."""
+    # Remove trailing commas before } or ]
+    s = re.sub(r",\s*([}\]])", r"\1", s)
+    return s
 
 
 def extract_json_payload(json_str: str) -> dict | None:
-    """Robustly extract and parse JSON payload even with surrounding markdown or comments."""
+    """Robustly extract and parse JSON payload from various formats.
+
+    Handles: {a2ui_messages: [...]}, [{...}], {root, components}, etc.
+    Always returns a dict (wrapping arrays in a2ui_messages if needed).
+    """
     if not json_str:
         return None
     clean = json_str.strip()
+
+    # Strip markdown code fences
     if clean.startswith("```json"):
         clean = clean[7:]
-    if clean.startswith("```"):
+    elif clean.startswith("```"):
         clean = clean[3:]
     if clean.endswith("```"):
         clean = clean[:-3]
     clean = clean.strip()
 
-    start_idx = clean.find("{")
-    end_idx = clean.rfind("}")
-    if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-        candidate = clean[start_idx : end_idx + 1]
+    def _try_parse(s: str):
+        """Try parsing a string as JSON, with trailing comma fix fallback."""
         try:
-            return json.loads(candidate)
-        except Exception:
+            return json.loads(s)
+        except json.JSONDecodeError:
             pass
+        try:
+            return json.loads(_fix_json_string(s))
+        except json.JSONDecodeError:
+            return None
 
-    try:
-        return json.loads(clean)
-    except Exception as e:
-        logger.error(f"Failed to parse A2UI JSON: {e}")
+    def _normalize(parsed):
+        """Normalize parsed JSON to always return a dict."""
+        if isinstance(parsed, dict):
+            return parsed
+        if isinstance(parsed, list):
+            # Wrap array in a2ui_messages — handles v0.9 array format
+            return {"a2ui_messages": parsed}
         return None
+
+    # Try parsing the whole string first (handles both objects and arrays)
+    result = _try_parse(clean)
+    if result is not None:
+        return _normalize(result)
+
+    # Find the outermost {...} or [...]
+    first_brace = clean.find("{")
+    first_bracket = clean.find("[")
+
+    # Determine which comes first
+    if first_bracket != -1 and (first_brace == -1 or first_bracket < first_brace):
+        # Array format — find matching ]
+        end_bracket = clean.rfind("]")
+        if end_bracket > first_bracket:
+            candidate = clean[first_bracket : end_bracket + 1]
+            result = _try_parse(candidate)
+            if result is not None:
+                return _normalize(result)
+
+    if first_brace != -1:
+        end_brace = clean.rfind("}")
+        if end_brace > first_brace:
+            candidate = clean[first_brace : end_brace + 1]
+            result = _try_parse(candidate)
+            if result is not None:
+                return _normalize(result)
+
+        # Try balanced brace extraction
+        depth = 0
+        for i, ch in enumerate(clean[first_brace:], first_brace):
+            if ch == "{":
+                depth += 1
+            elif ch == "}":
+                depth -= 1
+                if depth == 0:
+                    balanced = clean[first_brace : i + 1]
+                    result = _try_parse(balanced)
+                    if result is not None:
+                        return _normalize(result)
+                    break
+
+    logger.error("Failed to parse A2UI JSON. Snippet: %s", clean[:300])
+    return None
 
 
 def process_a2ui_response(text: str):
-    """Parse model text output into A2A-compatible parts."""
+    """Parse model text output into A2A-compatible parts.
+
+    Supports BOTH delimiter formats:
+      - SDK v0.9 format: <a2ui-json>...</a2ui-json>
+      - Legacy format: ---a2ui_JSON---
+    """
     parts = []
+
+    # --- Try SDK v0.9 format: <a2ui-json>...</a2ui-json> ---
+    a2ui_tag_pattern = re.compile(
+        r"<a2ui-json>\s*(.*?)\s*</a2ui-json>", re.DOTALL
+    )
+    matches = a2ui_tag_pattern.findall(text)
+
+    if matches:
+        # Extract text before the first <a2ui-json> tag
+        first_tag_pos = text.find("<a2ui-json>")
+        text_content = text[:first_tag_pos].strip() if first_tag_pos > 0 else ""
+
+        if text_content:
+            parts.append({"text": text_content})
+
+        for match in matches:
+            data = extract_json_payload(match)
+            if data:
+                parts.append(
+                    {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
+                )
+
+        if parts:
+            return parts
+
+    # --- Fallback: Legacy ---a2ui_JSON--- delimiter ---
     if "---a2ui_JSON---" in text:
         text_content, json_str = text.split("---a2ui_JSON---", 1)
         text_content = text_content.strip()
@@ -258,7 +255,27 @@ def process_a2ui_response(text: str):
             parts.append(
                 {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
             )
-    else:
-        parts.append({"text": text.strip()})
 
+        if parts:
+            return parts
+
+    # --- Fallback: Try to find raw JSON with a2ui_messages key ---
+    if "a2ui_messages" in text:
+        # Try to extract JSON object containing a2ui_messages
+        idx = text.find("a2ui_messages")
+        # Walk backward to find the opening {
+        start = text.rfind("{", 0, idx)
+        if start != -1:
+            data = extract_json_payload(text[start:])
+            if data:
+                text_before = text[:start].strip()
+                if text_before:
+                    parts.append({"text": text_before})
+                parts.append(
+                    {"data": data, "metadata": {"mimeType": "application/json+a2ui"}}
+                )
+                return parts
+
+    # --- No A2UI payload found, return as plain text ---
+    parts.append({"text": text.strip()})
     return parts

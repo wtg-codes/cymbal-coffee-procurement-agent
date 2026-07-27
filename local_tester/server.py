@@ -37,6 +37,11 @@ app.add_middleware(
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+
+@app.get("/health")
+async def health_check():
+    return {"status": "ok", "agent": adk_agent.name}
+
 adk_agent = agent_module.root_agent
 runner = runners.Runner(
     app_name=adk_agent.name,
@@ -256,7 +261,9 @@ async def handle_jsonrpc(request: Request):
             }
 
         # Parse model response using A2UI SDK parser
+        logger.info(f"Raw model output:\n{final_response_content[:2000]}")
         parsed_parts = process_a2ui_response(final_response_content)
+        logger.info(f"Parsed parts count: {len(parsed_parts)}")
         parts = []
         if parsed_parts:
             for part in parsed_parts:
