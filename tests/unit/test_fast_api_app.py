@@ -1,5 +1,4 @@
-# Copyright 2026 Google LLC
-
+import pytest
 from fastapi.testclient import TestClient
 
 from app.fast_api_app import app
@@ -34,3 +33,19 @@ def test_app_title():
 def test_app_description():
     """App description should reference the agent."""
     assert "cymbal-coffee-procurement-agent" in app.description
+
+
+@pytest.mark.asyncio
+async def test_app_lifespan(monkeypatch):
+    """Lifespan should initialize runner and attach A2A routes."""
+    monkeypatch.setenv("MOCK_LLM_FOR_TEST", "TRUE")
+    from app.fast_api_app import lifespan
+    async with lifespan(app):
+        assert hasattr(app.state, "runner")
+        assert app.state.agent_app_name == "app"
+        # Test mock_run_async
+        events = []
+        async for event in app.state.runner.run_async():
+            events.append(event)
+        assert len(events) == 1
+

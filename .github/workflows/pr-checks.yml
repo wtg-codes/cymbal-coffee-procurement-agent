@@ -39,10 +39,11 @@ jobs:
         run: uv run ruff check .
 
       - name: Authenticate to Google Cloud
+        if: "${{ secrets.GCP_CREDENTIALS != '' }}"
         uses: google-github-actions/auth@v2
-        continue-on-error: true
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
 
       - name: Run Tests with Coverage
         run: uv run pytest --cov=app --cov-fail-under=80
