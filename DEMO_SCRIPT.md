@@ -7,12 +7,11 @@
 
 | Resource | Link / Value |
 | --- | --- |
-| **Gemini Enterprise Agent UI** | [Launch Live Agent Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/12078504257893178677) |
+| **Gemini Enterprise Agent UI** | [Launch Clean Agent Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/14663328131467924379) |
 | **Gemini Enterprise Console** | [GE Agents Console](https://console.cloud.google.com/gemini-enterprise/locations/global/engines/cymbal-coffee-roasters-dem_1785169638752/agentic/agents?project=hackathon-y26) |
-| **Local Control Panel Dashboard** | [http://localhost:8000/dashboard](http://localhost:8000/dashboard) |
+| **Cloud Run Control Panel Dashboard** | [https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard](https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard) |
 | **GCP Project ID** | `hackathon-y26` |
-| **Active Reasoning Engine ID** | `projects/922201496337/locations/us-central1/reasoningEngines/7462483824006397952` |
-| **GE Registered Agent ID** | `12078504257893178677` |
+| **Active Registered Agent ID** | `14663328131467924379` |
 
 ---
 
@@ -27,16 +26,12 @@
 
 ## 🎬 Step-by-Step Live Demo Walkthrough
 
-### Phase 1: Local Control Panel & IoT Simulator (2 Minutes)
+### Phase 1: Cloud Run Control Panel & IoT Simulator (2 Minutes)
 
-1. **Launch the Local Server**:
-   ```bash
-   uv run python -m app.fast_api_app
-   ```
-2. **Open the Control Panel Dashboard**:
-   - Open [http://localhost:8000/dashboard](http://localhost:8000/dashboard) in your browser.
-   - **Show the Audience**: Point out the live telemetry bins for *Downtown Flagship (#101)* and *SFO Terminal 2 (#102)*.
-3. **Inject a Simulated Low-Stock Event**:
+1. **Open the Cloud Run Control Panel Dashboard**:
+   - Open [https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard](https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard) in your browser.
+   - Click **▶️ Start 2-Hour Demo Session** to start the synthetic IoT simulation engine.
+2. **Inject a Simulated Low-Stock Event**:
    - Click the red button: **🚨 Trigger Critical Bean Stock (12% SF)**.
    - Observe the progress bar drop to 12% with a **CRITICAL** status badge.
 
@@ -44,7 +39,7 @@
 
 ### Phase 2: Live Gemini Enterprise Chat Demo (5 Minutes)
 
-Open the **[Live Gemini Enterprise Agent Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/12078504257893178677)** and execute the following 4-step sequence:
+Open **[Gemini Enterprise Live Chat](https://vertexaisearch.cloud.google.com/home/cid/1f20f8ae-0e38-46e8-a86f-2e10fb1c8318/r/agent/14663328131467924379)** and execute the following 4-step sequence:
 
 #### Step 1: Real-time Telemetry Health Check
 * **Prompt to Copy & Paste**:
@@ -93,9 +88,9 @@ Open the **[Live Gemini Enterprise Agent Chat](https://vertexaisearch.cloud.goog
 
 ---
 
-### Phase 3: Verify Results on Local Dashboard (1 Minute)
+### Phase 3: Verify Results on Cloud Run Dashboard (1 Minute)
 
-1. Switch back to [http://localhost:8000/dashboard](http://localhost:8000/dashboard).
+1. Switch back to the [Cloud Run Control Panel Dashboard](https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/dashboard).
 2. Show the **Generated Purchase Orders (POs)** table — `PO-CYMBAL-1001` now appears in real time under the table!
 
 ---
@@ -108,14 +103,11 @@ Open the **[Live Gemini Enterprise Agent Chat](https://vertexaisearch.cloud.goog
 
 ---
 
-## 🛠️ Verification & Troubleshooting Commands
+## 🛠️ Verification Commands
 
 ```bash
 # Run unit & integration test suite
 uv run pytest
-
-# Check active GCP authentication
-gcloud auth list
 
 # Verify Discovery Engine registered agents
 curl -s -H "Authorization: Bearer $(gcloud auth print-access-token)" \
