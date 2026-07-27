@@ -55,10 +55,10 @@ def setup_telemetry() -> str | None:
             "Prompt-response logging disabled (set LOGS_BUCKET_NAME=gs://your-bucket and OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=NO_CONTENT to enable)"
         )
 
+    import sys
+
     # Set up OpenTelemetry exporters for Cloud Trace and Cloud Logging
-    if os.environ.get("DISABLE_OTEL_TRACING") == "true" or not os.environ.get(
-        "GCP_CREDENTIALS"
-    ):
+    if "pytest" in sys.modules or os.environ.get("DISABLE_OTEL_TRACING") == "true":
         logging.info("Skipping OpenTelemetry exporters setup for test environment.")
         _setup_instrumentation_lib_if_installed()
         return bucket
