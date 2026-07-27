@@ -66,6 +66,162 @@ def _default_capabilities() -> AgentCapabilities:
     )
 
 
+import json
+import logging
+from a2a import types, utils
+from a2a.server import agent_execution, tasks
+from a2a.utils import errors as a2a_errors
+from google.genai import types as genai_types
+
+logger = logging.getLogger(__name__)
+
+
+class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
+    """Executor that intercepts LLM text output and splits A2UI JSON into native application/json+a2ui DataParts."""
+
+    def __init__(self, agent: BaseAgent, runner: Runner):
+        self._agent = agent
+        self._runner = runner
+        self._user_id = "remote_agent"
+
+    async def execute(
+        self,
+        context: agent_execution.RequestContext,
+        event_queue: events.EventQueue,
+    ) -> None:
+        query = context.get_user_input()
+        task = context.current_task
+
+        if not task:
+            if not context.message:
+                return
+            task = utils.new_task(context.message)
+            await event_queue.enqueue_event(task)
+
+        updater = tasks.TaskUpdater(event_queue, task.id, task.context_id)
+        session_id = task.context_id
+
+        session = await self._runner.session_service.get_session(
+            app_name=self._agent.name,
+            user_id=self._user_id,
+            session_id=session_id,
+        )
+        if session is None:
+            session = await self._runner.session_service.create_session(
+                app_name=self._agent.name,
+                user_id=self._user_id,
+                state={},
+                session_id=session_id,
+            )
+
+        await updater.start_work()
+
+        content = genai_types.Content(role="user", parts=[{"text": query}])
+        final_response_content = ""
+
+        try:
+            async for event in self._runner.run_async(
+                user_id=self._user_id, session_id=session.id, new_message=content
+            ):
+                if event.is_final_response():
+                    if (
+                        event.content
+                        and event.content.parts
+                        and event.content.parts[0].text
+                    ):
+                        final_response_content += event.content.parts[0].text
+        except Exception as e:
+            await updater.failed(
+                message=utils.new_agent_text_message(
+                    f"Task failed with error: {str(e)}"
+                )
+            )
+            return
+
+        if not final_response_content:
+            await updater.failed(
+                message=utils.new_agent_text_message("No response generated.")
+            )
+            return
+
+        # Split conversational text from A2UI JSON payload
+        text_part = final_response_content
+        json_string = None
+
+        if "---a2ui_JSON---" in final_response_content:
+            text_part, json_string = final_response_content.split(
+                "---a2ui_JSON---", 1
+            )
+        elif (
+            "<a2ui-json>" in final_response_content
+            and "</a2ui-json>" in final_response_content
+        ):
+            start = final_response_content.find("<a2ui-json>")
+            end = final_response_content.find("</a2ui-json>")
+            text_part = (
+                final_response_content[:start]
+                + final_response_content[end + len("</a2ui-json>") :]
+            )
+            json_string = final_response_content[
+                start + len("<a2ui-json>") : end
+            ]
+
+        parts = []
+        if text_part and text_part.strip():
+            parts.append(types.Part(root=types.TextPart(text=text_part.strip())))
+
+        if json_string and json_string.strip():
+            clean_json = json_string.strip()
+            if clean_json.startswith("```json"):
+                clean_json = clean_json[7:]
+            if clean_json.startswith("```"):
+                clean_json = clean_json[3:]
+            if clean_json.endswith("```"):
+                clean_json = clean_json[:-3]
+            clean_json = clean_json.strip()
+
+            try:
+                data = json.loads(clean_json)
+                if isinstance(data, dict) and "a2ui_messages" in data:
+                    for msg in data["a2ui_messages"]:
+                        parts.append(
+                            types.Part(
+                                root=types.DataPart(
+                                    data=msg,
+                                    metadata={
+                                        "mimeType": "application/json+a2ui"
+                                    },
+                                )
+                            )
+                        )
+                else:
+                    parts.append(
+                        types.Part(
+                            root=types.DataPart(
+                                data=data,
+                                metadata={"mimeType": "application/json+a2ui"},
+                            )
+                        )
+                    )
+            except Exception as e:
+                logger.error("Failed to parse A2UI JSON: %s", e)
+
+        if not parts:
+            parts.append(
+                types.Part(root=types.TextPart(text=final_response_content))
+            )
+
+        await updater.add_artifact(parts, name="response")
+        await updater.complete()
+
+    async def cancel(
+        self,
+        context: agent_execution.RequestContext,
+        event_queue: events.EventQueue,
+    ) -> None:
+        raise a2a_errors.ServerError(error=types.UnsupportedOperationError())
+
+
 async def attach_a2a_routes(
     app: FastAPI,
     *,
@@ -77,15 +233,7 @@ async def attach_a2a_routes(
     agent_version: str | None = None,
     app_url: str | None = None,
 ) -> None:
-    """Register A2A routes (JSON-RPC + agent-card endpoints) under ``rpc_path``.
-
-    Builds a dynamic agent card from ``agent`` and mounts the routes on ``app``.
-    The ``runner`` should share the session/artifact/memory services with the
-    standard ADK path. ``capabilities``, ``agent_version``, and ``app_url``
-    override their defaults (streaming + ADK extension, ``AGENT_VERSION``,
-    ``APP_URL``). Call once per app — typically in a FastAPI ``lifespan``, since
-    the card is built asynchronously; repeated calls register duplicate routes.
-    """
+    """Register A2A routes (JSON-RPC + agent-card endpoints) under ``rpc_path``."""
     if "APP_URL" not in os.environ or "0.0.0.0" in os.environ["APP_URL"]:
         os.environ["APP_URL"] = "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
 
@@ -101,7 +249,7 @@ async def attach_a2a_routes(
     ).build()
 
     request_handler = DefaultRequestHandler(
-        agent_executor=A2aAgentExecutor(runner=runner),
+        agent_executor=CustomA2aAgentExecutor(agent=agent, runner=runner),
         task_store=task_store,
     )
 
@@ -112,3 +260,4 @@ async def attach_a2a_routes(
         rpc_url=rpc_path,
         extended_agent_card_url=f"{rpc_path}{EXTENDED_AGENT_CARD_PATH}",
     )
+
