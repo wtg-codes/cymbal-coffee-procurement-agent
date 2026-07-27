@@ -12,6 +12,8 @@ jobs:
       PYTHONPATH: '.'
       GOOGLE_GENAI_USE_VERTEXAI: 'false'
       GOOGLE_CLOUD_PROJECT: 'hackathon-y26'
+      GCP_PROJECT: 'hackathon-y26'
+      CLOUDSDK_CORE_PROJECT: 'hackathon-y26'
       GOOGLE_CLOUD_LOCATION: 'global'
       GCP_CREDENTIALS: '${{ secrets.GCP_CREDENTIALS }}'
 
