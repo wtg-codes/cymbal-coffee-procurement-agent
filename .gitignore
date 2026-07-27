@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.pyc
+
+.env
+!.env.example
+.venv
+.venv*
+.adk/
+.google-agents-cli/
+.pytest_cache/
+.ruff_cache/
