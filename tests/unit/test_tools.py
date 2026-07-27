@@ -32,7 +32,9 @@ def test_analyze_consumption_patterns():
 
 
 def test_create_purchase_order():
-    res = create_purchase_order("downtown-flagship", "dark-roast-beans", 40.0, "EXPEDITED")
+    res = create_purchase_order(
+        "downtown-flagship", "dark-roast-beans", 40.0, "EXPEDITED"
+    )
     assert res["success"] is True
 
 
@@ -42,5 +44,7 @@ def test_send_customer_notification():
 
 
 def test_notify_store_manager():
-    res = notify_store_manager("downtown-flagship", "HIGH", "Reorder Dispatched", "PO created.")
+    res = notify_store_manager(
+        "downtown-flagship", "HIGH", "Reorder Dispatched", "PO created."
+    )
     assert res["success"] is True

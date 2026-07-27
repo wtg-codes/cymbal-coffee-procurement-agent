@@ -27,8 +27,11 @@ def test_get_session_service_returns_in_memory():
     get_session_service.cache_clear()
     with mock.patch.dict(os.environ, {}, clear=False):
         # Remove vars that would trigger other backends
-        env = {k: v for k, v in os.environ.items()
-               if k not in ("SESSION_SERVICE_URI", "GOOGLE_CLOUD_AGENT_ENGINE_ID")}
+        env = {
+            k: v
+            for k, v in os.environ.items()
+            if k not in ("SESSION_SERVICE_URI", "GOOGLE_CLOUD_AGENT_ENGINE_ID")
+        }
         with mock.patch.dict(os.environ, env, clear=True):
             svc = get_session_service()
             assert svc is not None

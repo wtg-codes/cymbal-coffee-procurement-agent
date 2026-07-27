@@ -19,6 +19,7 @@ Retrieve the token from the `ToolContext` using the key defined by the environme
 ```python
 from google.adk.tools import ToolContext
 
+
 def my_tool(query: str, tool_context: ToolContext):
     auth_name = os.getenv("AUTH_NAME")
     access_token = tool_context.state.get(auth_name)

@@ -5,28 +5,56 @@ import os
 from collections.abc import AsyncIterator
 
 import google.auth
+import vertexai
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
 from google.cloud import logging as google_cloud_logging
+from pydantic import BaseModel
 
 from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
+from app.tools.procurement import PURCHASE_ORDERS, create_purchase_order
+from app.tools.telemetry import (
+    STORE_TELEMETRY,
+    get_simulation_status,
+    simulate_sensor_event,
+    start_simulation,
+    stop_simulation,
+)
 
 load_dotenv()
+if not os.getenv("GOOGLE_CLOUD_PROJECT"):
+    os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
+if not os.getenv("GCP_PROJECT"):
+    os.environ["GCP_PROJECT"] = "hackathon-y26"
+
+vertexai.init(
+    project=os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
+    location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
+)
+
 setup_telemetry()
 try:
-
     _, project_id = google.auth.default()
     logging_client = google_cloud_logging.Client()
     logger = logging_client.logger(__name__)
 except Exception:
     import logging
+    from unittest.mock import MagicMock
 
+    import google.auth.credentials
+
+    mock_creds = MagicMock(spec=google.auth.credentials.Credentials)
+    google.auth.default = lambda *args, **kwargs: (
+        mock_creds,
+        os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
+    )
     logger = logging.getLogger(__name__)
 
 allow_origins = (
@@ -54,7 +82,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         async def mock_run_async(*args, **kwargs):
             yield Event(
                 author="app",
-                content=Content(parts=[Part.from_text(text="Mock response for integration test")]),
+                content=Content(
+                    parts=[Part.from_text(text="Mock response for integration test")]
+                ),
             )
 
         runner.run_async = mock_run_async
@@ -84,33 +114,21 @@ app: FastAPI = get_fast_api_app(
 )
 
 app.title = "cymbal-coffee-procurement-agent"
-app.description = (
-    "API for interacting with the Agent cymbal-coffee-procurement-agent"
-)
+app.description = "API for interacting with the Agent cymbal-coffee-procurement-agent"
 
-
-from fastapi.responses import HTMLResponse
-from pydantic import BaseModel
-from app.tools.telemetry import (
-    STORE_TELEMETRY,
-    simulate_sensor_event,
-    get_bin_telemetry,
-    start_simulation,
-    stop_simulation,
-    get_simulation_status,
-)
-from app.tools.procurement import PURCHASE_ORDERS, create_purchase_order
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
 
 @app.get("/", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_dashboard() -> HTMLResponse:
     dashboard_path = os.path.join(STATIC_DIR, "dashboard.html")
     if os.path.exists(dashboard_path):
-        with open(dashboard_path, "r", encoding="utf-8") as f:
+        with open(dashboard_path, encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     return HTMLResponse(content="<h1>Cymbal Coffee Dashboard</h1>")
+
 
 @app.get("/api/dashboard/data")
 def get_dashboard_data() -> dict:
@@ -120,12 +138,17 @@ def get_dashboard_data() -> dict:
         "simulation": get_simulation_status(),
     }
 
+
 class StartSimRequest(BaseModel):
     duration_minutes: int = 120
 
+
 @app.post("/api/dashboard/simulation/start")
-def api_start_simulation(req: StartSimRequest = StartSimRequest()) -> dict:
+def api_start_simulation(req: StartSimRequest | None = None) -> dict:
+    if req is None:
+        req = StartSimRequest()
     return start_simulation(duration_minutes=req.duration_minutes)
+
 
 @app.post("/api/dashboard/simulation/stop")
 def api_stop_simulation() -> dict:
@@ -137,6 +160,7 @@ class SimulateRequest(BaseModel):
     item_key: str
     level_percent: float
 
+
 @app.post("/api/dashboard/simulate")
 def api_simulate_sensor(req: SimulateRequest) -> dict:
     return simulate_sensor_event(
@@ -144,6 +168,7 @@ def api_simulate_sensor(req: SimulateRequest) -> dict:
         item_key=req.item_key,
         new_level_percent=req.level_percent,
     )
+
 
 @app.post("/api/dashboard/create-po")
 def api_create_po() -> dict:
@@ -154,14 +179,25 @@ def api_create_po() -> dict:
         urgency="EXPEDITED",
     )
 
+
 @app.post("/api/dashboard/reset")
 def api_reset_telemetry() -> dict:
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["level_percent"] = 82.0
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["current_weight_kg"] = 16.4
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["status"] = "OPTIMAL"
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"][
+        "level_percent"
+    ] = 82.0
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"][
+        "current_weight_kg"
+    ] = 16.4
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["status"] = (
+        "OPTIMAL"
+    )
 
-    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["level_percent"] = 15.0
-    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["current_weight_kg"] = 3.0
+    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["level_percent"] = (
+        15.0
+    )
+    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"][
+        "current_weight_kg"
+    ] = 3.0
     STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["status"] = "WARNING"
     return {"status": "reset"}
 

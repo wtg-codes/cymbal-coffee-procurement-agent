@@ -83,32 +83,37 @@ import sys
 from google.auth import default
 from google.auth.transport.requests import Request
 
+
 def get_bearer_token():
     credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
     credentials.refresh(Request())
     return credentials.token
 
+
 def test_agent(project_number, location, engine_id, query):
-    resource_name = f"projects/{project_number}/locations/{location}/reasoningEngines/{engine_id}"
+    resource_name = (
+        f"projects/{project_number}/locations/{location}/reasoningEngines/{engine_id}"
+    )
     url = f"https://{location}-aiplatform.googleapis.com/v1beta1/{resource_name}/a2a/v1/message:send"
-    
+
     headers = {
         "Authorization": f"Bearer {get_bearer_token()}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
+
     payload = {
-      "request": {
-        "message_id": "test-msg-id-001",
-        "role": "ROLE_USER",
-        "content": [{"text": query}]
-      },
-      "configuration": {"blocking": True}
+        "request": {
+            "message_id": "test-msg-id-001",
+            "role": "ROLE_USER",
+            "content": [{"text": query}],
+        },
+        "configuration": {"blocking": True},
     }
-    
+
     response = requests.post(url, headers=headers, json=payload)
     print("Status:", response.status_code)
     print("Response:", response.text)
+
 
 if __name__ == "__main__":
     test_agent("YOUR_PROJECT_NUMBER", "us-central1", "YOUR_ENGINE_ID", "Hello")

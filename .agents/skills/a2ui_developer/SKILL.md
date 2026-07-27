@@ -124,33 +124,40 @@ from a2a.server import agent_execution
 from a2a.server import events
 from google.adk import runners
 
+
 class AdkAgentToA2AExecutor(agent_execution.AgentExecutor):
-  def __init__(self):
-    self._agent = local_agent.root_agent  # Your ADK LlmAgent
-    self._runner = runners.Runner(...)
+    def __init__(self):
+        self._agent = local_agent.root_agent  # Your ADK LlmAgent
+        self._runner = runners.Runner(...)
 
-  async def execute(self, context: agent_execution.RequestContext, event_queue: events.EventQueue) -> None:
-    query = context.get_user_input()
-    # 1. Run the agent stream
-    final_response_content = ""
-    async for event in self._runner.run_async(...):
-       if event.is_final_response():
-          final_response_content += event.content.parts[0].text
+    async def execute(
+        self, context: agent_execution.RequestContext, event_queue: events.EventQueue
+    ) -> None:
+        query = context.get_user_input()
+        # 1. Run the agent stream
+        final_response_content = ""
+        async for event in self._runner.run_async(...):
+            if event.is_final_response():
+                final_response_content += event.content.parts[0].text
 
-    # 2. Extract A2UI JSON and convert to DataPart
-    text_part, json_string = final_response_content.split("---a2ui_JSON---", 1)
-    # ... parse json_string ...
-    
-    parts = []
-    parts.append(types.Part(root=types.TextPart(text=text_part)))
-    parts.append(types.Part(root=types.DataPart(
-        data=json.loads(json_string),
-        metadata={"mimeType": "application/json+a2ui"}
-    )))
+        # 2. Extract A2UI JSON and convert to DataPart
+        text_part, json_string = final_response_content.split("---a2ui_JSON---", 1)
+        # ... parse json_string ...
 
-    # 3. Yield to stream
-    await updater.add_artifact(parts, name="response")
-    await updater.complete()
+        parts = []
+        parts.append(types.Part(root=types.TextPart(text=text_part)))
+        parts.append(
+            types.Part(
+                root=types.DataPart(
+                    data=json.loads(json_string),
+                    metadata={"mimeType": "application/json+a2ui"},
+                )
+            )
+        )
+
+        # 3. Yield to stream
+        await updater.add_artifact(parts, name="response")
+        await updater.complete()
 ```
 
 #### standard app.py (FastAPI/Starlette)
@@ -159,12 +166,16 @@ from starlette.applications import Starlette
 from a2a.server.apps import A2AStarletteApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 
-agent_executor = DefaultRequestHandler() # Or appropriate executor
+agent_executor = DefaultRequestHandler()  # Or appropriate executor
 request_handler = DefaultRequestHandler(agent_executor=agent_executor)
 app = Starlette()
 
 a2a_app = A2AStarletteApplication(agent_card=agent_card, http_handler=request_handler)
-a2a_app.add_routes_to_app(app, rpc_url="/a2a/my_agent", agent_card_url="/a2a/my_agent/.well-known/agent-card.json")
+a2a_app.add_routes_to_app(
+    app,
+    rpc_url="/a2a/my_agent",
+    agent_card_url="/a2a/my_agent/.well-known/agent-card.json",
+)
 ```
 
 ### 4.B. Vertex AI Agent Engine (Native Tools)
@@ -249,12 +260,7 @@ from a2ui.send_a2ui_to_client_toolset import SendA2uiToClientToolset
 # In Agent Initialization
 root_agent = LlmAgent(
     # ...
-    tools=[
-        SendA2uiToClientToolset(
-            a2ui_enabled=True,
-            a2ui_schema=A2UI_SCHEMA
-        )
-    ]
+    tools=[SendA2uiToClientToolset(a2ui_enabled=True, a2ui_schema=A2UI_SCHEMA)]
 )
 ```
 
@@ -297,27 +303,35 @@ When deploying A2UI agents to Gemini Enterprise and using rich UI components (li
 *   **Implementation Pattern (Custom Executor)**: In your custom `agent_executor.py`, you MUST iterate through the `parts` of the incoming message, look for the `DataPart` containing `userAction`, and extract the specific message or parameters from it to override or augment the query before passing it to the agent!
 
 ```python
-    # Example extraction logic in execute() method
-    try:
-        if hasattr(context, 'message') and context.message and hasattr(context.message, 'parts'):
-            for part in context.message.parts:
-                if hasattr(part, 'root') and hasattr(part.root, 'data'):
-                    data_part = part.root
-                    if hasattr(data_part, 'metadata') and data_part.metadata and data_part.metadata.get('mimeType') == 'application/json+a2ui':
-                        data = data_part.data
-                        if 'userAction' in data:
-                            user_action = data['userAction']
-                            if 'context' in user_action:
-                                action_context = user_action['context']
-                                if 'message' in action_context:
-                                    query = action_context['message'] # Override query
-                                    
-                                # Save other context to session state
-                                for k, v in action_context.items():
-                                    if k != 'message':
-                                        session.state[k] = v
-    except Exception as e:
-        logger.warning("Failed to extract action context: %s", e)
+# Example extraction logic in execute() method
+try:
+    if (
+        hasattr(context, "message")
+        and context.message
+        and hasattr(context.message, "parts")
+    ):
+        for part in context.message.parts:
+            if hasattr(part, "root") and hasattr(part.root, "data"):
+                data_part = part.root
+                if (
+                    hasattr(data_part, "metadata")
+                    and data_part.metadata
+                    and data_part.metadata.get("mimeType") == "application/json+a2ui"
+                ):
+                    data = data_part.data
+                    if "userAction" in data:
+                        user_action = data["userAction"]
+                        if "context" in user_action:
+                            action_context = user_action["context"]
+                            if "message" in action_context:
+                                query = action_context["message"]  # Override query
+
+                            # Save other context to session state
+                            for k, v in action_context.items():
+                                if k != "message":
+                                    session.state[k] = v
+except Exception as e:
+    logger.warning("Failed to extract action context: %s", e)
 ```
 
 ### Local Mock Testing of A2UI (Crucial for Rapid Prototyping)
@@ -364,7 +378,7 @@ When building a custom local tester (e.g., using FastAPI and a standalone HTML f
     a2a_message = {
         "role": "ROLE_USER",
         "content": a2a_parts,
-        "context_id": params.get("session_id")
+        "context_id": params.get("session_id"),
     }
     ```
 
@@ -508,11 +522,12 @@ if "PROJECT_ID" in os.environ:
 ```python
 import sys
 from typing import Any
+
 try:
     import vertexai.preview.reasoning_engines.templates.a2a as a2a_module
     import starlette.requests
     import a2a.server.apps.rest.rest_adapter as adapter_module
-    
+
     if "Request" not in a2a_module.__dict__:
         a2a_module.__dict__["Request"] = starlette.requests.Request
     if "ServerCallContext" not in a2a_module.__dict__:
@@ -529,11 +544,14 @@ except ImportError:
 ```python
 try:
     from google.protobuf.message import Message
+
     original_setstate = Message.__setstate__
+
     def patched_setstate(self, state):
-        if 'serialized' not in state:
-             state['serialized'] = b''
+        if "serialized" not in state:
+            state["serialized"] = b""
         return original_setstate(self, state)
+
     Message.__setstate__ = patched_setstate
 except Exception as e:
     pass
@@ -619,6 +637,7 @@ import json
 
 app = FastAPI()
 
+
 @app.post("/jsonrpc")
 async def handle_jsonrpc(request: Request):
     body = await request.json()
@@ -626,28 +645,28 @@ async def handle_jsonrpc(request: Request):
     message = params.get("message", {})
     query = message.get("text", "")
     parts = message.get("parts", [])
-    
+
     # Extract userAction from DataPart
     user_action = None
     for part in parts:
         if part.get("metadata", {}).get("mimeType") == "application/json+a2ui":
             data = part.get("data")
-            if isinstance(data, dict) and 'userAction' in data:
-                user_action = data['userAction']
+            if isinstance(data, dict) and "userAction" in data:
+                user_action = data["userAction"]
                 break
-                
+
     # Process Action Context
     state = {}
     if user_action:
-        action_context = user_action.get('context', {})
+        action_context = user_action.get("context", {})
         for key, value in action_context.items():
             state[key] = value
-            if key == 'message':
+            if key == "message":
                 query = value  # Override query with message from context
-                
+
     # Call your agent here...
     # response = agent.run(query, state)
-    
+
     # Return A2UI response...
 ```
 
@@ -695,6 +714,7 @@ from agent import root_agent
 
 logger = logging.getLogger(__name__)
 
+
 class AdkAgentToA2AExecutor(agent_execution.AgentExecutor):
     def __init__(self):
         self._runner = runners.Runner(
@@ -704,57 +724,80 @@ class AdkAgentToA2AExecutor(agent_execution.AgentExecutor):
             auto_create_session=True,
         )
 
-    async def execute(self, context: agent_execution.RequestContext, event_queue: events.EventQueue) -> None:
+    async def execute(
+        self, context: agent_execution.RequestContext, event_queue: events.EventQueue
+    ) -> None:
         query = context.get_user_input()
         task = context.current_task
         task_id = context.task_id or (task.id if task else "default_task")
         context_id = context.context_id or (task.context_id if task else "default")
         session_id = context_id or "default"
-        
+
         # 1. SESSION RECOVERY: Extract state from A2UI payload
         try:
-            if hasattr(context, 'message') and context.message:
+            if hasattr(context, "message") and context.message:
                 for part in context.message.parts:
-                    if hasattr(part, 'root') and hasattr(part.root, 'data'):
+                    if hasattr(part, "root") and hasattr(part.root, "data"):
                         data = part.root.data
-                        if isinstance(data, dict) and 'userAction' in data:
-                            action_ctx = data['userAction'].get('context', {})
-                            query = action_ctx.get('message', query)
+                        if isinstance(data, dict) and "userAction" in data:
+                            action_ctx = data["userAction"].get("context", {})
+                            query = action_ctx.get("message", query)
                             # Recover Form Inputs
-                            for item in data['userAction'].get('inputs', []):
-                                if item.get('id'): context.metadata[item['id']] = item['value']
-        except Exception as e: logger.warning(f"Recovery failed: {e}")
+                            for item in data["userAction"].get("inputs", []):
+                                if item.get("id"):
+                                    context.metadata[item["id"]] = item["value"]
+        except Exception as e:
+            logger.warning(f"Recovery failed: {e}")
 
         # 2. STATE INJECTION: Persist state via prompt (Transcript Echoing)
         state_str = "|".join([f"{k}={v}" for k, v in context.metadata.items()])
-        if state_str: query = f"{query} [State: {state_str}]"
+        if state_str:
+            query = f"{query} [State: {state_str}]"
 
         # 3. EXECUTION: Run ADK Runner with correct types
         updater = tasks.TaskUpdater(event_queue, task_id, context_id)
         await updater.start_work()
-        
+
         full_text = ""
         async for event in self._runner.run_async(
-            user_id="user", 
-            session_id=session_id, 
-            new_message=genai_types.Content(parts=[genai_types.Part(text=query)])
+            user_id="user",
+            session_id=session_id,
+            new_message=genai_types.Content(parts=[genai_types.Part(text=query)]),
         ):
             if event.is_final_response():
-                full_text += "".join([p.text for p in event.content.parts if hasattr(p, 'text')])
+                full_text += "".join(
+                    [p.text for p in event.content.parts if hasattr(p, "text")]
+                )
 
         # 4. OUTPUT PARSING: Regex-based extraction (Required for v0.8)
         json_match = re.search(r"(\{.*\"a2ui_messages\".*\})", full_text, re.DOTALL)
-        parts = [types.Part(root=types.TextPart(text=re.sub(r"---a2ui_JSON---.*", "", full_text, flags=re.DOTALL).strip()))]
+        parts = [
+            types.Part(
+                root=types.TextPart(
+                    text=re.sub(
+                        r"---a2ui_JSON---.*", "", full_text, flags=re.DOTALL
+                    ).strip()
+                )
+            )
+        ]
         if json_match:
             try:
                 for msg in json.loads(json_match.group(1)).get("a2ui_messages", []):
-                    parts.append(types.Part(root=types.DataPart(data=msg, metadata={"mimeType": "application/json+a2ui"})))
-            except: pass
-            
+                    parts.append(
+                        types.Part(
+                            root=types.DataPart(
+                                data=msg, metadata={"mimeType": "application/json+a2ui"}
+                            )
+                        )
+                    )
+            except:
+                pass
+
         await updater.add_artifact(parts, name="response")
         await updater.complete()
 
-    async def cancel(self, context, event_queue): pass
+    async def cancel(self, context, event_queue):
+        pass
 ```
 
 ## 17. Reasoning Engine Troubleshooting Bible

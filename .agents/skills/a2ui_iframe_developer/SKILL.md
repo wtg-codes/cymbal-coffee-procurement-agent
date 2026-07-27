@@ -152,12 +152,15 @@ Below is a Python pattern for dynamically constructing a `WebFrameUrl` component
 ```python
 import urllib.parse
 
-def generate_maps_iframe_component(api_key: str, origin: str, destination: str, waypoints: list[str]) -> dict:
+
+def generate_maps_iframe_component(
+    api_key: str, origin: str, destination: str, waypoints: list[str]
+) -> dict:
     """
     Generates the A2UI component spec for an interactive Google Maps Embed iframe.
     """
     base_url = "https://www.google.com/maps/embed/v1/directions"
-    
+
     # URL encode route parameters
     params = {
         "key": api_key,
@@ -166,20 +169,15 @@ def generate_maps_iframe_component(api_key: str, origin: str, destination: str, 
     }
     if waypoints:
         params["waypoints"] = "|".join(waypoints)
-        
+
     encoded_query = urllib.parse.urlencode(params)
     embed_url = f"{base_url}?{encoded_query}"
-    
+
     return {
         "id": "route_map_iframe",
         "component": {
-            "WebFrameUrl": {
-                "url": {
-                    "literalString": embed_url
-                },
-                "height": 450
-            }
-        }
+            "WebFrameUrl": {"url": {"literalString": embed_url}, "height": 450}
+        },
     }
 ```
 

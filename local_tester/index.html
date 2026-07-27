@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cymbal Coffee - A2UI Local Tester</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #0f172a; color: #f8fafc; }
+        .container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; }
+        .title { font-size: 1.3rem; font-weight: 700; color: #f59e0b; display: flex; align-items: center; gap: 8px; }
+        .chat-box { border: 1px solid #334155; padding: 16px; height: 480px; overflow-y: auto; margin-bottom: 16px; background: #0f172a; border-radius: 8px; }
+        .msg { margin-bottom: 16px; line-height: 1.5; }
+        .msg-user { color: #38bdf8; font-weight: 600; }
+        .msg-agent { color: #f8fafc; }
+        .msg-system { color: #94a3b8; font-style: italic; font-size: 0.85rem; }
+        
+        /* A2UI Component Styles */
+        .a2ui-card { border: 1px solid #334155; border-left: 4px solid #f59e0b; padding: 18px; margin: 12px 0; border-radius: 8px; background: #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
+        .a2ui-column { display: flex; flex-direction: column; gap: 10px; }
+        .a2ui-row { display: flex; flex-direction: row; gap: 10px; align-items: center; }
+        .a2ui-h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0 0 4px 0; }
+        .a2ui-h2 { font-size: 1.2rem; font-weight: 600; color: #f8fafc; margin: 0 0 4px 0; }
+        .a2ui-h3 { font-size: 1.05rem; font-weight: 600; color: #cbd5e1; margin: 0 0 2px 0; }
+        .a2ui-body { font-size: 0.95rem; color: #e2e8f0; margin: 0; }
+        .a2ui-button { background: #3b82f6; color: white; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
+        .a2ui-button:hover { background: #2563eb; transform: translateY(-1px); }
+        .a2ui-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; }
+        .badge-optimal { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
+        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+        .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
+        
+        .input-group { display: flex; gap: 10px; }
+        input[type="text"] { flex-grow: 1; padding: 12px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #f8fafc; font-size: 0.95rem; }
+        input[type="text"]:focus { outline: none; border-color: #f59e0b; }
+        pre { background: #020617; padding: 12px; border-radius: 6px; border: 1px solid #334155; overflow-x: auto; color: #38bdf8; font-size: 0.82rem; }
+        details { margin-top: 15px; }
+        summary { cursor: pointer; color: #f59e0b; font-weight: 600; font-size: 0.9rem; }
+        .session-info { font-size: 0.85rem; color: #94a3b8; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="title">☕ Cymbal Coffee - A2UI Local Tester</div>
+            <div class="session-info">
+                <span id="session-id-display"></span>
+                <button onclick="startNewSession()" class="a2ui-button" style="background: #ef4444; padding: 6px 12px; margin-left: 10px;">Reset</button>
+            </div>
+        </div>
+        
+        <div class="chat-box" id="chat">
+            <div class="msg msg-system">A2UI Local Test Harness Active. Ready for queries.</div>
+        </div>
+        
+        <div class="input-group">
+            <input type="text" id="input" placeholder="Type prompt (e.g. 'Check inventory telemetry for all stores')...">
+            <button onclick="sendMessage()" class="a2ui-button">Send</button>
+        </div>
+        
+        <details>
+            <summary>Show Raw A2UI JSON Payload</summary>
+            <pre id="json-dump">No A2UI payload received yet.</pre>
+        </details>
+    </div>
+
+    <script>
+        let dataModel = {};
+        let sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+
+        function updateSessionDisplay() {
+            document.getElementById('session-id-display').innerText = `Session ID: ${sessionId}`;
+        }
+
+        function startNewSession() {
+            sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+            updateSessionDisplay();
+            dataModel = {};
+            document.getElementById('chat').innerHTML = '<div class="msg msg-system">Session reset.</div>';
+            document.getElementById('json-dump').innerText = 'No A2UI payload received yet.';
+        }
+
+        updateSessionDisplay();
+
+        document.getElementById('input').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function sendMessage() {
+            const input = document.getElementById('input');
+            const text = input.value;
+            if (!text.trim()) return;
+            input.value = '';
+            
+            appendMsg('User', text);
+            await sendPayload({ message: { text: text } });
+        }
+
+        async function sendUserAction(userAction, messageText) {
+            appendMsg('User', messageText || "Triggered UI Action");
+            
+            const payload = {
+                message: {
+                    text: messageText || "Triggered UI Action",
+                    parts: [
+                        {
+                            data: { userAction: userAction },
+                            metadata: { mimeType: 'application/json+a2ui' }
+                        }
+                    ]
+                }
+            };
+            await sendPayload(payload);
+        }
+
+        async function sendPayload(params) {
+            const loadingDiv = appendMsg('System', 'Agent processing request...');
+            try {
+                const response = await fetch('/jsonrpc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: '2.0',
+                        method: 'message/send',
+                        params: { ...params, session_id: sessionId },
+                        id: Date.now()
+                    })
+                });
+                
+                const data = await response.json();
+                loadingDiv.remove();
+                handleResponse(data);
+            } catch (error) {
+                loadingDiv.remove();
+                appendMsg('Error', `Server connection error: ${error.message}`);
+            }
+        }
+
+        function appendMsg(sender, text) {
+            const chat = document.getElementById('chat');
+            const div = document.createElement('div');
+            div.className = 'msg';
+            if (sender === 'User') {
+                div.innerHTML = `<span class="msg-user">User:</span> ${escapeHtml(text)}`;
+            } else if (sender === 'Agent') {
+                div.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">Agent:</span> ${escapeHtml(text)}`;
+            } else {
+                div.innerHTML = `<span class="msg-system">${escapeHtml(text)}</span>`;
+            }
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.innerText = text;
+            return div.innerHTML;
+        }
+
+        function handleResponse(data) {
+            if (data.error) {
+                appendMsg('Error', data.error.message);
+                return;
+            }
+            
+            const parts = data.result && data.result.message && data.result.message.parts ? data.result.message.parts : [];
+            
+            for (const part of parts) {
+                if (part.text) {
+                    appendMsg('Agent', part.text);
+                }
+                if (part.data && part.metadata && part.metadata.mimeType === 'application/json+a2ui') {
+                    const uiData = part.data;
+                    document.getElementById('json-dump').innerText = JSON.stringify(uiData, null, 2);
+                    renderA2UIMessage(uiData);
+                }
+            }
+        }
+
+        function renderA2UIMessage(uiData) {
+            const chat = document.getElementById('chat');
+            
+            // Handle array of messages or single message object
+            const messages = Array.isArray(uiData) ? uiData : (uiData.a2ui_messages ? uiData.a2ui_messages : [uiData]);
+            
+            let currentRoot = null;
+            let components = [];
+            
+            for (const msg of messages) {
+                if (msg.dataModelUpdate && msg.dataModelUpdate.contents) {
+                    for (const item of msg.dataModelUpdate.contents) {
+                        dataModel[item.key] = item.valueString || item.valueNumber || item.valueBoolean;
+                    }
+                }
+                if (msg.beginRendering && msg.beginRendering.root) {
+                    currentRoot = msg.beginRendering.root;
+                }
+                if (msg.surfaceUpdate && msg.surfaceUpdate.components) {
+                    components = msg.surfaceUpdate.components;
+                    if (msg.surfaceUpdate.root) currentRoot = msg.surfaceUpdate.root;
+                }
+            }
+            
+            if (components.length > 0) {
+                const rootId = currentRoot || components[0].id;
+                const renderedNode = buildComponentNode(rootId, components);
+                if (renderedNode) {
+                    chat.appendChild(renderedNode);
+                    chat.scrollTop = chat.scrollHeight;
+                }
+            }
+        }
+
+        function buildComponentNode(id, components) {
+            const wrapper = components.find(c => c.id === id);
+            if (!wrapper || !wrapper.component) {
+                return null;
+            }
+            
+            const comp = wrapper.component;
+            
+            if (comp.Card) {
+                const card = document.createElement('div');
+                card.className = 'a2ui-card';
+                if (comp.Card.child) {
+                    const childNode = buildComponentNode(comp.Card.child, components);
+                    if (childNode) card.appendChild(childNode);
+                }
+                return card;
+            }
+            
+            if (comp.Column) {
+                const col = document.createElement('div');
+                col.className = 'a2ui-column';
+                const children = (comp.Column.children && comp.Column.children.explicitList) ? comp.Column.children.explicitList : [];
+                for (const childId of children) {
+                    const childNode = buildComponentNode(childId, components);
+                    if (childNode) col.appendChild(childNode);
+                }
+                return col;
+            }
+            
+            if (comp.Row) {
+                const row = document.createElement('div');
+                row.className = 'a2ui-row';
+                const children = (comp.Row.children && comp.Row.children.explicitList) ? comp.Row.children.explicitList : [];
+                for (const childId of children) {
+                    const childNode = buildComponentNode(childId, components);
+                    if (childNode) row.appendChild(childNode);
+                }
+                return row;
+            }
+            
+            if (comp.Text) {
+                const textObj = comp.Text;
+                const hint = textObj.usageHint || 'body';
+                const str = (textObj.text && textObj.text.literalString) ? textObj.text.literalString : ((textObj.text && textObj.text.path) ? (dataModel[textObj.text.path] || "") : "");
+                
+                const el = document.createElement(hint === 'h1' ? 'h1' : (hint === 'h2' ? 'h2' : (hint === 'h3' ? 'h3' : 'p')));
+                el.className = `a2ui-${hint}`;
+                el.innerText = str;
+                return el;
+            }
+            
+            if (comp.Button) {
+                const btnObj = comp.Button;
+                const btn = document.createElement('button');
+                btn.className = 'a2ui-button';
+                
+                if (btnObj.child) {
+                    const labelComp = components.find(c => c.id === btnObj.child);
+                    if (labelComp && labelComp.component && labelComp.component.Text) {
+                        btn.innerText = labelComp.component.Text.text.literalString || "Click";
+                    } else {
+                        btn.innerText = btnObj.child;
+                    }
+                } else {
+                    btn.innerText = "Action";
+                }
+                
+                if (btnObj.action) {
+                    btn.onclick = () => {
+                        const userAction = {
+                            name: btnObj.action.name || "submit",
+                            context: {}
+                        };
+                        if (btnObj.action.context) {
+                            for (const item of btnObj.action.context) {
+                                if (item.key && item.value) {
+                                    userAction.context[item.key] = item.value.literalString || dataModel[item.value.path];
+                                }
+                            }
+                        }
+                        const msgStr = userAction.context.message || "ButtonClicked";
+                        sendUserAction(userAction, msgStr);
+                    };
+                }
+                return btn;
+            }
+            
+            return null;
+        }
+    </script>
+</body>
+</html>

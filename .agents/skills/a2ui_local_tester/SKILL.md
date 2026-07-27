@@ -47,7 +47,7 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(parent_dir)
 
 # Load environment variables from .env file in parent directory
-load_dotenv(os.path.join(parent_dir, '.env'))
+load_dotenv(os.path.join(parent_dir, ".env"))
 
 import agent
 from google.adk import runners
@@ -80,40 +80,51 @@ runner = runners.Runner(
     memory_service=in_memory_memory_service.InMemoryMemoryService(),
 )
 
+
 @app.get("/.well-known/agent-card.json")
 async def get_agent_card():
     return {
         "capabilities": {
             "streaming": False,
-            "extensions": [{"uri": "https://a2ui.org/a2a-extension/a2ui/v0.8", "required": False}]
+            "extensions": [
+                {"uri": "https://a2ui.org/a2a-extension/a2ui/v0.8", "required": False}
+            ],
         },
         "name": adk_agent.name,
         "url": "/jsonrpc",
-        "version": "1.0.0"
+        "version": "1.0.0",
     }
+
 
 @app.get("/")
 async def get_index():
-    return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+    return FileResponse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    )
+
 
 @app.post("/jsonrpc")
 async def handle_jsonrpc(request: Request):
     body = await request.json()
     logger.info(f"Received JSON-RPC request: {body}")
-    
+
     if body.get("jsonrpc") != "2.0":
-        return {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": body.get("id")}
-        
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32600, "message": "Invalid Request"},
+            "id": body.get("id"),
+        }
+
     method = body.get("method")
     params = body.get("params", {})
     request_id = body.get("id")
-    
+
     if method == "message/send":
         message = params.get("message", {})
         query = message.get("text", "")
         parts = message.get("parts", [])
         session_id = params.get("session_id", "local_session")
-        
+
         # Extract userAction from DataPart
         user_action = None
         for part in parts:
@@ -124,10 +135,10 @@ async def handle_jsonrpc(request: Request):
                         data = json.loads(data)
                     except:
                         pass
-                if isinstance(data, dict) and 'userAction' in data:
-                    user_action = data['userAction']
+                if isinstance(data, dict) and "userAction" in data:
+                    user_action = data["userAction"]
                     break
-        
+
         # Get session
         session = await runner.session_service.get_session(
             app_name=adk_agent.name,
@@ -141,59 +152,76 @@ async def handle_jsonrpc(request: Request):
                 state={},
                 session_id=session_id,
             )
-            
+
         state = session.state if session.state else {}
-        
+
         # Inject userAction context into session state
         if user_action:
-            action_context = user_action.get('context', {})
+            action_context = user_action.get("context", {})
             for key, value in action_context.items():
                 state[key] = value
-                if key == 'message':
-                    query = value # Override query with message from context
-            session.state = state # Update in-memory object
-            
+                if key == "message":
+                    query = value  # Override query with message from context
+            session.state = state  # Update in-memory object
+
         # Append state to query to maintain context
-        state_str = " ".join([f"[State: {k}={v}]" for k, v in state.items() if k not in ['message']])
+        state_str = " ".join(
+            [f"[State: {k}={v}]" for k, v in state.items() if k not in ["message"]]
+        )
         if state_str:
             query = f"{query} {state_str}"
             logger.info(f"Injected state into query: {query}")
-            
+
         content = genai_types.Content(role="user", parts=[{"text": query}])
-        
+
         final_response_content = None
         async for event in runner.run_async(
             user_id="local_user", session_id=session.id, new_message=content
         ):
             if event.is_final_response():
-                if event.content and event.content.parts and event.content.parts[0].text:
-                    final_response_content = "\n".join([p.text for p in event.content.parts if p.text])
-                    
+                if (
+                    event.content
+                    and event.content.parts
+                    and event.content.parts[0].text
+                ):
+                    final_response_content = "\n".join(
+                        [p.text for p in event.content.parts if p.text]
+                    )
+
         if not final_response_content:
-            return {"jsonrpc": "2.0", "result": {"message": {"text": "No response from agent"}}, "id": request_id}
-            
+            return {
+                "jsonrpc": "2.0",
+                "result": {"message": {"text": "No response from agent"}},
+                "id": request_id,
+            }
+
         # Split A2UI JSON
         text_part = final_response_content
         json_string_cleaned = "[]"
-        
+
         if "---a2ui_JSON---" in final_response_content:
             text_part, json_string = final_response_content.split("---a2ui_JSON---", 1)
-            json_string_cleaned = json_string.strip().lstrip("```json").rstrip("```").strip()
+            json_string_cleaned = (
+                json_string.strip().lstrip("```json").rstrip("```").strip()
+            )
             if not json_string_cleaned:
                 json_string_cleaned = "[]"
-                
+
         try:
             ui_data = json.loads(json_string_cleaned)
         except Exception as e:
             logger.error(f"Failed to parse UI JSON: {e}")
             ui_data = []
-            
+
         parts = []
         if text_part.strip():
             parts.append({"text": text_part.strip()})
-            
+
         # Load schema
-        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server_to_client_with_standard_catalog.json")
+        schema_path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "server_to_client_with_standard_catalog.json",
+        )
         schema = None
         if os.path.exists(schema_path):
             try:
@@ -209,33 +237,40 @@ async def handle_jsonrpc(request: Request):
             messages = ui_data["a2ui_messages"]
         else:
             messages = [ui_data] if ui_data else []
-            
+
         for msg in messages:
             if schema:
                 try:
                     import jsonschema
+
                     jsonschema.validate(instance=msg, schema=schema)
-                    logger.info("A2UI payload message successfully validated against schema.")
+                    logger.info(
+                        "A2UI payload message successfully validated against schema."
+                    )
                 except jsonschema.ValidationError as e:
-                    logger.critical(f"A2UI STRICT SCHEMA VALIDATION FAILED: {e.message}")
+                    logger.critical(
+                        f"A2UI STRICT SCHEMA VALIDATION FAILED: {e.message}"
+                    )
                     logger.critical(f"Invalid Message: {json.dumps(msg, indent=2)}")
-                    raise ValueError(f"A2UI Schema Validation Error: {e.message}") from e
-            parts.append({
-                "data": msg,
-                "metadata": {"mimeType": "application/json+a2ui"}
-            })
-            
+                    raise ValueError(
+                        f"A2UI Schema Validation Error: {e.message}"
+                    ) from e
+            parts.append(
+                {"data": msg, "metadata": {"mimeType": "application/json+a2ui"}}
+            )
+
         return {
             "jsonrpc": "2.0",
-            "result": {
-                "message": {
-                    "parts": parts
-                }
-            },
-            "id": request_id
+            "result": {"message": {"parts": parts}},
+            "id": request_id,
         }
-        
-    return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": request_id}
+
+    return {
+        "jsonrpc": "2.0",
+        "error": {"code": -32601, "message": "Method not found"},
+        "id": request_id,
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
@@ -848,10 +883,12 @@ PROJECT_ID = "your-project-id"
 LOCATION = "us-central1"
 ENGINE_ID = "your-engine-id"
 
+
 def get_bearer_token():
     credentials, _ = default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
     credentials.refresh(AuthRequest())
     return credentials.token
+
 
 @app.get("/.well-known/agent-card.json")
 async def get_agent_card():
@@ -861,104 +898,166 @@ async def get_agent_card():
     res = requests.get(url, headers=headers)
     return res.json()
 
+
 @app.get("/")
 async def get_index():
-    return FileResponse(os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html"))
+    return FileResponse(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    )
+
 
 @app.post("/jsonrpc")
 async def handle_jsonrpc(request: Request):
     body = await request.json()
     logger.info(f"Received JSON-RPC request: {body}")
-    
+
     if body.get("jsonrpc") != "2.0":
-        return {"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": body.get("id")}
-        
+        return {
+            "jsonrpc": "2.0",
+            "error": {"code": -32600, "message": "Invalid Request"},
+            "id": body.get("id"),
+        }
+
     method = body.get("method")
     params = body.get("params", {})
     request_id = body.get("id")
-    
+
     if method == "message/send":
         message = params.get("message", {})
-        
+
         token = get_bearer_token()
         url = f"https://{LOCATION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{ENGINE_ID}/a2a/v1/message:send"
-        headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-        
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
         payload = {"message": message}
-        
+
         logger.info(f"Forwarding to remote agent: {url}")
         res = requests.post(url, headers=headers, json=payload)
-        
+
         if res.status_code != 200:
-            return {"jsonrpc": "2.0", "error": {"code": res.status_code, "message": res.text}, "id": request_id}
-            
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": res.status_code, "message": res.text},
+                "id": request_id,
+            }
+
         remote_response = res.json()
         task_id = remote_response.get("task", {}).get("id")
-        
+
         if task_id:
             logger.info(f"Polling Task {task_id}...")
             task_url = f"https://{LOCATION}-aiplatform.googleapis.com/v1beta1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{ENGINE_ID}/a2a/v1/tasks/{task_id}"
-            
+
             for _ in range(90):
                 time.sleep(2)
                 task_res = requests.get(task_url, headers=headers)
                 if task_res.status_code == 404:
-                    logger.warning("Task status returned 404 (not found). Syncing replica, retrying...")
+                    logger.warning(
+                        "Task status returned 404 (not found). Syncing replica, retrying..."
+                    )
                     continue
                 if task_res.status_code == 200:
                     task_data = task_res.json()
                     state = task_data.get("status", {}).get("state")
-                    
-                    if state == "TASK_STATE_SUCCEEDED" or state == "TASK_STATE_COMPLETED":
+
+                    if (
+                        state == "TASK_STATE_SUCCEEDED"
+                        or state == "TASK_STATE_COMPLETED"
+                    ):
                         artifacts = task_data.get("artifacts", [])
                         # Load schema
-                        schema_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "server_to_client_with_standard_catalog.json")
+                        schema_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            "server_to_client_with_standard_catalog.json",
+                        )
                         schema = None
                         if os.path.exists(schema_path):
                             try:
                                 with open(schema_path, "r") as f:
                                     schema = json.load(f)
                             except Exception as e:
-                                logger.error(f"Failed to load schema from {schema_path}: {e}")
+                                logger.error(
+                                    f"Failed to load schema from {schema_path}: {e}"
+                                )
 
                         parts = []
                         if artifacts:
                             parts = artifacts[0].get("parts", [])
                             # Clean nested data fields in A2UI parts if needed
                             for part in parts:
-                                if "data" in part and part.get("metadata", {}).get("mimeType") == "application/json+a2ui":
+                                if (
+                                    "data" in part
+                                    and part.get("metadata", {}).get("mimeType")
+                                    == "application/json+a2ui"
+                                ):
                                     data_field = part["data"]
-                                    if isinstance(data_field, dict) and "data" in data_field:
+                                    if (
+                                        isinstance(data_field, dict)
+                                        and "data" in data_field
+                                    ):
                                         part["data"] = data_field["data"]
-                                    
+
                                     # Validate data_field against schema
                                     if schema:
                                         try:
                                             import jsonschema
-                                            jsonschema.validate(instance=part["data"], schema=schema)
-                                            logger.info("A2UI payload part successfully validated against schema.")
+
+                                            jsonschema.validate(
+                                                instance=part["data"], schema=schema
+                                            )
+                                            logger.info(
+                                                "A2UI payload part successfully validated against schema."
+                                            )
                                         except jsonschema.ValidationError as e:
-                                            logger.critical(f"A2UI STRICT SCHEMA VALIDATION FAILED: {e.message}")
-                                            logger.critical(f"Invalid Message: {json.dumps(part['data'], indent=2)}")
-                                            raise ValueError(f"A2UI Schema Validation Error: {e.message}") from e
-                            
+                                            logger.critical(
+                                                f"A2UI STRICT SCHEMA VALIDATION FAILED: {e.message}"
+                                            )
+                                            logger.critical(
+                                                f"Invalid Message: {json.dumps(part['data'], indent=2)}"
+                                            )
+                                            raise ValueError(
+                                                f"A2UI Schema Validation Error: {e.message}"
+                                            ) from e
+
                         return {
                             "jsonrpc": "2.0",
-                            "result": {
-                                "message": {
-                                    "parts": parts
-                                }
-                            },
-                            "id": request_id
+                            "result": {"message": {"parts": parts}},
+                            "id": request_id,
                         }
                     elif state == "TASK_STATE_FAILED":
-                        return {"jsonrpc": "2.0", "error": {"code": 500, "message": "Task failed on remote agent"}, "id": request_id}
-                
-            return {"jsonrpc": "2.0", "error": {"code": 504, "message": "Task timeout on remote agent"}, "id": request_id}
+                        return {
+                            "jsonrpc": "2.0",
+                            "error": {
+                                "code": 500,
+                                "message": "Task failed on remote agent",
+                            },
+                            "id": request_id,
+                        }
+
+            return {
+                "jsonrpc": "2.0",
+                "error": {"code": 504, "message": "Task timeout on remote agent"},
+                "id": request_id,
+            }
         else:
-            return {"jsonrpc": "2.0", "error": {"code": 500, "message": "No task ID returned from remote agent"}, "id": request_id}
-        
-    return {"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": request_id}
+            return {
+                "jsonrpc": "2.0",
+                "error": {
+                    "code": 500,
+                    "message": "No task ID returned from remote agent",
+                },
+                "id": request_id,
+            }
+
+    return {
+        "jsonrpc": "2.0",
+        "error": {"code": -32601, "message": "Method not found"},
+        "id": request_id,
+    }
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

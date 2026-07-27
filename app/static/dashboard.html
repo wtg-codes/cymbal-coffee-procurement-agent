@@ -412,8 +412,42 @@
 
         <!-- Side Column: Sensor Controls & GE Prompts -->
         <div>
+            <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: linear-gradient(135deg, rgba(22, 28, 45, 0.9), rgba(245, 158, 11, 0.08));">
+                <div class="card-title">
+                    <span>🚀 Synthetic Demo Simulation</span>
+                    <span id="simStatusTag" class="bin-status-tag tag-optimal">STANDBY</span>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Activate the synthetic IoT telemetry backend for live demonstrations (auto-timeout in 2 hours max):
+                </p>
+
+                <div id="simTimerDisplay" style="display: none; background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 10px; margin-bottom: 1rem; text-align: center;">
+                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Remaining Session Time (Max 2h)</div>
+                    <div id="countdownTimer" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-amber);">02:00:00</div>
+                </div>
+
+                <button id="btnStartSim" class="btn-action" style="font-size: 0.95rem; padding: 0.8rem;" onclick="startSimulation()">
+                    ▶️ Start 2-Hour Demo Session
+                </button>
+
+                <button id="btnStopSim" class="btn-action btn-danger" style="display: none; font-size: 0.85rem; margin-top: 0.5rem;" onclick="stopSimulation()">
+                    ⏹️ Stop Demo Session
+                </button>
+            </div>
+
+            <!-- Dynamic Morning Rush Stream Log Card -->
+            <div id="orderLogCard" class="card" style="display: none;">
+                <div class="card-title">
+                    <span>☕ Morning Order Stream (6:30 AM Rush)</span>
+                    <span id="orderCountBadge" class="bin-status-tag tag-optimal">0 orders</span>
+                </div>
+                <div id="orderLogList" style="max-height: 180px; overflow-y: auto; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 0.3rem;">
+                    <!-- Dynamically populated -->
+                </div>
+            </div>
+
             <div class="card">
-                <div class="card-title">⚡ Sensor Event Injector</div>
+                <div class="card-title">⚡ Instant Sensor Event Injector</div>
                 <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
                     Simulate real-world stock depletion or hardware anomalies to trigger agent workflows:
                 </p>
@@ -434,6 +468,7 @@
                     📝 Manually Generate Test PO
                 </button>
             </div>
+
 
             <div class="card">
                 <div class="card-title">💡 Gemini Enterprise Test Prompts</div>
@@ -477,10 +512,71 @@
                 const data = await res.json();
                 renderStores(data.stores);
                 renderPOs(data.purchase_orders);
+                updateSimUI(data.simulation);
             } catch (err) {
                 console.error("Error fetching telemetry:", err);
             }
         }
+
+        function updateSimUI(sim) {
+            const statusTag = document.getElementById('simStatusTag');
+            const timerDisplay = document.getElementById('simTimerDisplay');
+            const btnStart = document.getElementById('btnStartSim');
+            const btnStop = document.getElementById('btnStopSim');
+            const timerVal = document.getElementById('countdownTimer');
+            const orderLogCard = document.getElementById('orderLogCard');
+            const orderLogList = document.getElementById('orderLogList');
+            const orderCountBadge = document.getElementById('orderCountBadge');
+
+            if (sim && sim.is_active) {
+                statusTag.className = 'bin-status-tag tag-warning';
+                statusTag.innerText = 'DEMO ACTIVE';
+                timerDisplay.style.display = 'block';
+                btnStart.style.display = 'none';
+                btnStop.style.display = 'flex';
+                orderLogCard.style.display = 'block';
+
+                const sec = sim.remaining_seconds;
+                const h = String(Math.floor(sec / 3600)).padStart(2, '0');
+                const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                const s = String(sec % 60).padStart(2, '0');
+                timerVal.innerText = `${h}:${m}:${s}`;
+
+                if (sim.simulated_orders && sim.simulated_orders.length > 0) {
+                    orderCountBadge.innerText = `${sim.total_orders_processed || sim.simulated_orders.length * 18} orders`;
+                    orderLogList.innerHTML = sim.simulated_orders.map(o => `
+                        <div style="background: rgba(255,255,255,0.03); padding: 0.4rem 0.6rem; border-radius: 6px; display: flex; justify-content: space-between; border-left: 3px solid var(--accent-amber);">
+                            <div>
+                                <span style="color: var(--accent-amber);">${o.time}</span> • <strong>${o.description}</strong>
+                            </div>
+                            <span style="color: var(--accent-rose);">${o.impact}</span>
+                        </div>
+                    `).join('');
+                }
+            } else {
+                statusTag.className = 'bin-status-tag tag-optimal';
+                statusTag.innerText = 'STANDBY';
+                timerDisplay.style.display = 'none';
+                btnStart.style.display = 'flex';
+                btnStop.style.display = 'none';
+                orderLogCard.style.display = 'none';
+            }
+        }
+
+        async function startSimulation() {
+            await fetch('/api/dashboard/simulation/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ duration_minutes: 120 })
+            });
+            fetchTelemetry();
+        }
+
+        async function stopSimulation() {
+            await fetch('/api/dashboard/simulation/stop', { method: 'POST' });
+            fetchTelemetry();
+        }
+
 
         function renderStores(stores) {
             const container = document.getElementById('storesContainer');
