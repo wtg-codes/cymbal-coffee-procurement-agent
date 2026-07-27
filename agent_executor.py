@@ -1,19 +1,17 @@
 """Agent executor for ADK agents adapted for A2A compatibility on Agent Engine."""
 
 import logging
-from a2a import types
-from a2a import utils
-from a2a.server import agent_execution
-from a2a.server import events
-from a2a.server import tasks
-from a2a.utils import errors as a2a_errors
 
-from app import agent as app_agent
+from a2a import types, utils
+from a2a.server import agent_execution, events, tasks
+from a2a.utils import errors as a2a_errors
 from google.adk import runners
 from google.adk.artifacts import in_memory_artifact_service
 from google.adk.memory import in_memory_memory_service
 from google.adk.sessions import in_memory_session_service
 from google.genai import types as genai_types
+
+from app import agent as app_agent
 
 # Protobuf setstate patch for Python compatibility
 try:
@@ -100,7 +98,7 @@ class AdkAgentToA2AExecutor(agent_execution.AgentExecutor):
         except Exception as e:
             await updater.failed(
                 message=utils.new_agent_text_message(
-                    f"Task failed with error: {str(e)}"
+                    f"Task failed with error: {e!s}"
                 )
             )
             return

@@ -482,7 +482,7 @@ def generate_telemetry_chart(
     items = []
     colors = ["#38bdf8", "#f59e0b", "#10b981", "#a855f7", "#ec4899"]
     idx = 0
-    for item_key, b in bins.items():
+    for _item_key, b in bins.items():
         items.append({
             "name": b["item_name"],
             "percent": b["level_percent"],

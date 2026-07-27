@@ -22,19 +22,23 @@ registration.
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import TYPE_CHECKING
 
+from a2a import types, utils
+from a2a.server import agent_execution, events, tasks
 from a2a.server.apps import A2AFastAPIApplication
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import TaskStore
 from a2a.types import AgentCapabilities, AgentExtension
+from a2a.utils import errors as a2a_errors
 from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
-from google.adk.a2a.executor.a2a_agent_executor import A2aAgentExecutor
 from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
+from google.genai import types as genai_types
 
 if TYPE_CHECKING:
     from fastapi import FastAPI
@@ -65,13 +69,6 @@ def _default_capabilities() -> AgentCapabilities:
         ],
     )
 
-
-import json
-import logging
-from a2a import types, utils
-from a2a.server import agent_execution, tasks
-from a2a.utils import errors as a2a_errors
-from google.genai import types as genai_types
 
 logger = logging.getLogger(__name__)
 
@@ -133,7 +130,7 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         except Exception as e:
             await updater.failed(
                 message=utils.new_agent_text_message(
-                    f"Task failed with error: {str(e)}"
+                    f"Task failed with error: {e!s}"
                 )
             )
             return
