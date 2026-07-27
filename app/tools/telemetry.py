@@ -126,8 +126,11 @@ def simulate_sensor_event(
 
 def detect_equipment_anomalies(store_id: str = "downtown-flagship") -> dict[str, Any]:
     store = STORE_TELEMETRY.get(store_id)
+    if not store:
+        return {"error": f"Store ID '{store_id}' not found."}
     return {
         "store_id": store_id,
         "health_status": "ALL_SYSTEMS_HEALTHY",
         "detected_anomalies": [],
     }
+

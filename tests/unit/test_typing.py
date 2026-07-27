@@ -1,7 +1,5 @@
 # Copyright 2026 Google LLC
 
-import pytest
-from pydantic import ValidationError
 
 from app.app_utils.typing import Feedback
 

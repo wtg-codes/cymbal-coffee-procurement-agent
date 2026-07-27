@@ -1,13 +1,13 @@
 # Copyright 2026 Google LLC
 
 from app.tools import (
-    get_bin_telemetry,
-    simulate_sensor_event,
-    detect_equipment_anomalies,
     analyze_consumption_patterns,
     create_purchase_order,
-    send_customer_notification,
+    detect_equipment_anomalies,
+    get_bin_telemetry,
     notify_store_manager,
+    send_customer_notification,
+    simulate_sensor_event,
 )
 
 

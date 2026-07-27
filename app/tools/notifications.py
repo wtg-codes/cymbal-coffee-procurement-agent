@@ -1,6 +1,5 @@
 # Copyright 2026 Google LLC
 
-import datetime
 from typing import Any
 
 SENT_NOTIFICATIONS = []
