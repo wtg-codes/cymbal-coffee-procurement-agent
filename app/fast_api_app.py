@@ -87,6 +87,63 @@ app.description = (
 )
 
 
+from fastapi.responses import HTMLResponse
+from pydantic import BaseModel
+from app.tools.telemetry import STORE_TELEMETRY, simulate_sensor_event, get_bin_telemetry
+from app.tools.procurement import PURCHASE_ORDERS, create_purchase_order
+
+STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+@app.get("/", response_class=HTMLResponse)
+@app.get("/dashboard", response_class=HTMLResponse)
+def get_dashboard() -> HTMLResponse:
+    dashboard_path = os.path.join(STATIC_DIR, "dashboard.html")
+    if os.path.exists(dashboard_path):
+        with open(dashboard_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+    return HTMLResponse(content="<h1>Cymbal Coffee Dashboard</h1>")
+
+@app.get("/api/dashboard/data")
+def get_dashboard_data() -> dict:
+    return {
+        "stores": STORE_TELEMETRY,
+        "purchase_orders": PURCHASE_ORDERS,
+    }
+
+class SimulateRequest(BaseModel):
+    store_id: str
+    item_key: str
+    level_percent: float
+
+@app.post("/api/dashboard/simulate")
+def api_simulate_sensor(req: SimulateRequest) -> dict:
+    return simulate_sensor_event(
+        store_id=req.store_id,
+        item_key=req.item_key,
+        new_level_percent=req.level_percent,
+    )
+
+@app.post("/api/dashboard/create-po")
+def api_create_po() -> dict:
+    return create_purchase_order(
+        store_id="downtown-flagship",
+        item_key="dark-roast-beans",
+        quantity_kg=40.0,
+        urgency="EXPEDITED",
+    )
+
+@app.post("/api/dashboard/reset")
+def api_reset_telemetry() -> dict:
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["level_percent"] = 82.0
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["current_weight_kg"] = 16.4
+    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["status"] = "OPTIMAL"
+
+    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["level_percent"] = 15.0
+    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["current_weight_kg"] = 3.0
+    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["status"] = "WARNING"
+    return {"status": "reset"}
+
+
 @app.post("/feedback")
 def collect_feedback(feedback: Feedback) -> dict[str, str]:
     if hasattr(logger, "log_struct"):
@@ -94,7 +151,6 @@ def collect_feedback(feedback: Feedback) -> dict[str, str]:
     else:
         logger.info(f"Feedback: {feedback.model_dump()}")
     return {"status": "success"}
-
 
 
 if __name__ == "__main__":

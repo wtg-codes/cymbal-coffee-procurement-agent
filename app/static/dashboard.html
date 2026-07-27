@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cymbal Coffee - Procurement & Telemetry Control Panel</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0b0f19;
+            --card-bg: rgba(22, 28, 45, 0.75);
+            --card-border: rgba(255, 255, 255, 0.08);
+            --accent-amber: #f59e0b;
+            --accent-orange: #ea580c;
+            --accent-emerald: #10b981;
+            --accent-rose: #f43f5e;
+            --accent-cyan: #06b6d4;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(245, 158, 11, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 85% 85%, rgba(6, 182, 212, 0.08) 0%, transparent 40%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+
+        .logo-group {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, var(--accent-amber), var(--accent-orange));
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            background: linear-gradient(to right, #ffffff, #d1d5db);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .badge-live {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--accent-emerald);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .pulse-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-emerald);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-emerald);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        .grid-layout {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .grid-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 1.5rem;
+            box-shadow: var(--glass-glow);
+            margin-bottom: 1.5rem;
+        }
+
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .stores-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .store-section {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 1.2rem;
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .store-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .store-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-main);
+        }
+
+        .store-location {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .bin-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1rem;
+        }
+
+        .bin-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bin-item-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .bin-id {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-bottom: 0.8rem;
+        }
+
+        .progress-bar-bg {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 0.6rem;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.5s ease, background-color 0.5s ease;
+        }
+
+        .status-optimal { background: linear-gradient(90deg, #10b981, #059669); }
+        .status-warning { background: linear-gradient(90deg, #f59e0b, #d97706); }
+        .status-critical { background: linear-gradient(90deg, #f43f5e, #e11d48); }
+
+        .bin-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .bin-status-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+        }
+
+        .tag-optimal { background: rgba(16, 185, 129, 0.2); color: #10b981; }
+        .tag-warning { background: rgba(245, 158, 11, 0.2); color: #f59e0b; }
+        .tag-critical { background: rgba(244, 63, 94, 0.2); color: #f43f5e; }
+
+        .btn-action {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(234, 88, 12, 0.2));
+            border: 1px solid rgba(245, 158, 11, 0.4);
+            color: #fef08a;
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            font-family: 'Outfit', sans-serif;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            width: 100%;
+            margin-top: 0.6rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .btn-action:hover {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.4), rgba(234, 88, 12, 0.4));
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: rgba(244, 63, 94, 0.15);
+            border-color: rgba(244, 63, 94, 0.4);
+            color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background: rgba(244, 63, 94, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .po-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .po-table th, .po-table td {
+            padding: 0.75rem;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .po-table th {
+            color: var(--text-muted);
+            font-weight: 500;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+
+        .po-code {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-cyan);
+        }
+
+        .prompt-box {
+            background: rgba(6, 182, 212, 0.08);
+            border: 1px dashed rgba(6, 182, 212, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .prompt-box:hover {
+            background: rgba(6, 182, 212, 0.15);
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+        }
+
+        .prompt-title {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--accent-cyan);
+            margin-bottom: 0.3rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .prompt-text {
+            font-size: 0.8rem;
+            color: var(--text-main);
+            font-style: italic;
+        }
+
+        .copy-toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--accent-emerald);
+            color: #000;
+            font-weight: 700;
+            padding: 0.8rem 1.5rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+        }
+
+        .copy-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="logo-group">
+            <div class="logo-icon">☕</div>
+            <div>
+                <h1>Cymbal Coffee Roasters</h1>
+                <div class="subtitle">IoT Telemetry & Automated Procurement Simulator</div>
+            </div>
+        </div>
+        <div class="badge-live">
+            <div class="pulse-dot"></div>
+            Backend Telemetry Engine Active
+        </div>
+    </div>
+
+    <div class="grid-layout">
+        <!-- Main Column: Store Telemetry & POs -->
+        <div>
+            <div class="card">
+                <div class="card-title">
+                    <span>📡 Live Store Telemetry Bins</span>
+                    <button class="btn-action btn-secondary" onclick="resetTelemetry()" style="width: auto; margin:0;">🔄 Reset Defaults</button>
+                </div>
+                <div id="storesContainer" class="stores-container">
+                    <!-- Loaded dynamically -->
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">
+                    <span>📦 Generated Purchase Orders (POs)</span>
+                </div>
+                <table class="po-table">
+                    <thead>
+                        <tr>
+                            <th>PO #</th>
+                            <th>Store</th>
+                            <th>Item</th>
+                            <th>Qty</th>
+                            <th>Total ($)</th>
+                            <th>Urgency</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="poTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align: center; color: var(--text-muted);">No Purchase Orders generated yet. Use the GE Agent or simulator below!</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Side Column: Sensor Controls & GE Prompts -->
+        <div>
+            <div class="card">
+                <div class="card-title">⚡ Sensor Event Injector</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Simulate real-world stock depletion or hardware anomalies to trigger agent workflows:
+                </p>
+
+                <button class="btn-action btn-danger" onclick="simulateEvent('downtown-flagship', 'dark-roast-beans', 12.0)">
+                    🚨 Trigger Critical Bean Stock (12% SF)
+                </button>
+
+                <button class="btn-action btn-danger" onclick="simulateEvent('airport-express', 'dark-roast-beans', 8.0)">
+                    🚨 Trigger Stockout Warning (8% SFO)
+                </button>
+
+                <button class="btn-action" onclick="simulateEvent('downtown-flagship', 'oat-milk', 15.0)">
+                    🥛 Low Oat Milk Telemetry (15% SF)
+                </button>
+
+                <button class="btn-action btn-secondary" onclick="createDemoPO()" style="margin-top: 1rem;">
+                    📝 Manually Generate Test PO
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">💡 Gemini Enterprise Test Prompts</div>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                    Click any prompt to copy it for testing in Gemini Enterprise:
+                </p>
+
+                <div class="prompt-box" onclick="copyPrompt(this)">
+                    <div class="prompt-title">
+                        <span>1. Inventory Health Overview</span>
+                        <span>📋 Copy</span>
+                    </div>
+                    <div class="prompt-text">"Check current bean and milk inventory telemetry for all stores and alert me if any levels are critical."</div>
+                </div>
+
+                <div class="prompt-box" onclick="copyPrompt(this)">
+                    <div class="prompt-title">
+                        <span>2. Automated Reorder</span>
+                        <span>📋 Copy</span>
+                    </div>
+                    <div class="prompt-text">"Analyze consumption velocity for Dark Roast Beans at Downtown Flagship and create an expedited purchase order."</div>
+                </div>
+
+                <div class="prompt-box" onclick="copyPrompt(this)">
+                    <div class="prompt-title">
+                        <span>3. Equipment Anomaly Scan</span>
+                        <span>📋 Copy</span>
+                    </div>
+                    <div class="prompt-text">"Run a diagnostic check for equipment anomalies and temperature spikes at SFO Terminal 2."</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="copyToast" class="copy-toast">Prompt copied to clipboard!</div>
+
+    <script>
+        async function fetchTelemetry() {
+            try {
+                const res = await fetch('/api/dashboard/data');
+                const data = await res.json();
+                renderStores(data.stores);
+                renderPOs(data.purchase_orders);
+            } catch (err) {
+                console.error("Error fetching telemetry:", err);
+            }
+        }
+
+        function renderStores(stores) {
+            const container = document.getElementById('storesContainer');
+            container.innerHTML = '';
+
+            for (const [storeId, store] of Object.entries(stores)) {
+                const section = document.createElement('div');
+                section.className = 'store-section';
+
+                let binsHtml = '';
+                for (const [itemKey, bin] of Object.entries(store.bins)) {
+                    const statusClass = bin.status === 'OPTIMAL' ? 'optimal' : (bin.status === 'WARNING' ? 'warning' : 'critical');
+                    binsHtml += `
+                        <div class="bin-card">
+                            <div class="bin-item-name">${bin.item_name}</div>
+                            <div class="bin-id">${bin.bin_id} • ${bin.temp_celsius}°C</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill status-${statusClass}" style="width: ${bin.level_percent}%"></div>
+                            </div>
+                            <div class="bin-meta">
+                                <span>${bin.current_weight_kg}kg / ${bin.max_capacity_kg}kg (${bin.level_percent}%)</span>
+                                <span class="bin-status-tag tag-${statusClass}">${bin.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                section.innerHTML = `
+                    <div class="store-header">
+                        <div>
+                            <div class="store-name">${store.store_name}</div>
+                            <div class="store-location">${store.address}, ${store.city}</div>
+                        </div>
+                    </div>
+                    <div class="bin-grid">${binsHtml}</div>
+                `;
+                container.appendChild(section);
+            }
+        }
+
+        function renderPOs(pos) {
+            const tbody = document.getElementById('poTableBody');
+            if (!pos || pos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted);">No Purchase Orders generated yet. Use the GE Agent or simulator!</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = pos.map(po => `
+                <tr>
+                    <td class="po-code">${po.po_number}</td>
+                    <td>${po.store_id}</td>
+                    <td>${po.item_name}</td>
+                    <td>${po.quantity_kg} kg</td>
+                    <td>$${po.total_cost_usd}</td>
+                    <td><span class="bin-status-tag tag-${po.urgency === 'EXPEDITED' ? 'critical' : 'optimal'}">${po.urgency}</span></td>
+                    <td><span style="color: var(--accent-emerald)">${po.status}</span></td>
+                </tr>
+            `).join('');
+        }
+
+        async function simulateEvent(storeId, itemKey, level) {
+            await fetch('/api/dashboard/simulate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ store_id: storeId, item_key: itemKey, level_percent: level })
+            });
+            fetchTelemetry();
+        }
+
+        async function resetTelemetry() {
+            await fetch('/api/dashboard/reset', { method: 'POST' });
+            fetchTelemetry();
+        }
+
+        async function createDemoPO() {
+            await fetch('/api/dashboard/create-po', { method: 'POST' });
+            fetchTelemetry();
+        }
+
+        function copyPrompt(element) {
+            const text = element.querySelector('.prompt-text').innerText.replace(/"/g, '');
+            navigator.clipboard.writeText(text);
+            
+            const toast = document.getElementById('copyToast');
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2500);
+        }
+
+        // Auto refresh every 4 seconds
+        fetchTelemetry();
+        setInterval(fetchTelemetry, 4000);
+    </script>
+</body>
+</html>
