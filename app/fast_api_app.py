@@ -5,6 +5,7 @@ import os
 from collections.abc import AsyncIterator
 
 import google.auth
+import vertexai
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -32,6 +33,11 @@ if not os.getenv("GOOGLE_CLOUD_PROJECT"):
     os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
 if not os.getenv("GCP_PROJECT"):
     os.environ["GCP_PROJECT"] = "hackathon-y26"
+
+vertexai.init(
+    project=os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
+    location=os.getenv("GOOGLE_CLOUD_LOCATION", "global"),
+)
 
 setup_telemetry()
 try:
