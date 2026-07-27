@@ -2,12 +2,47 @@
 __pycache__/
 *.py[cod]
 *.pyc
+*.pyo
 
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Virtual environments
 .env
 !.env.example
 .venv
 .venv*
+
+# ADK / agents-cli
 .adk/
 .google-agents-cli/
+
+# Testing / quality
 .pytest_cache/
 .ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+*.log
+
+# Artifacts / generated
+artifacts/
+job_log.txt
+
+# Lock files are committed (uv.lock)
