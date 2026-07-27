@@ -30,5 +30,5 @@ jobs:
             --source . \
             --region us-central1 \
             --project hackathon-y26 \
-            --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true \
+            --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,APP_URL=https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app \
             --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest
