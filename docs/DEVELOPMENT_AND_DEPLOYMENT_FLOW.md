@@ -73,6 +73,7 @@ Once the Pull Request is reviewed and merged into `main`, GitHub Actions automat
 
 1. **Build & Deploy Container**: Ships the containerized A2A FastAPI app (`app/fast_api_app.py`) to Google Cloud Run (`cymbal-coffee-procurement-dashboard`).
 2. **Synchronize Gemini Enterprise**: Automatically invokes `agents-cli publish gemini-enterprise` to refresh the A2A agent card (`/a2a/app/.well-known/agent-card.json`) in Gemini Enterprise.
+3. **Enforce ALL_USERS Sharing Scope**: Enforces `"sharingConfig": { "scope": "ALL_USERS" }` via Discovery Engine API so the agent immediately appears in end-user sidebars and agent pickers without requiring manual admin intervention.
 
 ---
 

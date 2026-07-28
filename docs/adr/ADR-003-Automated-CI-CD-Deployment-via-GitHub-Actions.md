@@ -19,6 +19,8 @@ We deprecate manual local deployment script execution (`deploy_ae.py`). We adopt
 2. **Automated Integration & Lint Checks**: Code must pass `pr-checks.yml` (`uv run ruff check .` and `uv run pytest --cov=app --cov-fail-under=80`) before PR merge.
 3. **Automated Deployment Triggers**: Merges to the `main` branch automatically trigger `.github/workflows/deploy.yml` via Google Cloud authentication (`google-github-actions/auth`).
 4. **Automatic Gemini Enterprise Registration**: Following successful Cloud Run deployment, the pipeline automatically registers/updates the agent card (`/a2a/app/.well-known/agent-card.json`) in Gemini Enterprise via `agents-cli publish gemini-enterprise`.
+5. **Mandatory ALL_USERS Sharing Scope**: The deployment workflow MUST explicitly enforce `"sharingConfig": { "scope": "ALL_USERS" }` on Discovery Engine agent registrations. Without explicit `ALL_USERS` scope, agents remain hidden from end-user agent pickers and sidebars.
+6. **Required CI/CD IAM Roles**: The CI/CD Service Account (`github-actions-sa`) MUST possess `roles/discoveryengine.admin` on project `hackathon-y26` to manage Discovery Engine API registrations without `403 Forbidden` errors.
 
 ## Consequences
 
