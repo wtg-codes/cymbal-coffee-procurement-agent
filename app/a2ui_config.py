@@ -7,12 +7,12 @@ import re
 from a2a import types
 from a2ui.a2a.extension import get_a2ui_agent_extension
 from a2ui.basic_catalog.provider import BasicCatalog
-from a2ui.schema.constants import VERSION_0_9
+from a2ui.schema.constants import VERSION_0_8
 from a2ui.schema.manager import A2uiSchemaManager
 
 logger = logging.getLogger(__name__)
 
-A2UI_VERSION = VERSION_0_9
+A2UI_VERSION = VERSION_0_8
 
 schema_manager = A2uiSchemaManager(
     version=A2UI_VERSION,
