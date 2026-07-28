@@ -35,19 +35,6 @@ def test_agent_stream() -> None:
         role="user", parts=[types.Part.from_text(text="Why is the sky blue?")]
     )
 
-    from google.adk.events import Event
-    from google.genai.types import Content, Part
-
-    def mock_run(*args, **kwargs):
-        yield Event(
-            author="app",
-            content=Content(
-                parts=[Part.from_text(text="Mock response for integration test")]
-            ),
-        )
-
-    runner.run = mock_run
-
     events = list(
         runner.run(
             new_message=message,
