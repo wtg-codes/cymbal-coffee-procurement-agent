@@ -252,13 +252,9 @@ def get_simulation_status() -> dict[str, Any]:
 
 
 def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
-    """Check if the Cloud Run synthetic telemetry & dashboard backend is online and responding."""
+    """Check if the Cloud Run synthetic telemetry & dashboard backend is online exclusively on Cloud Run, auto-starting if needed."""
     base_url = url.rstrip("/")
-    port = os.getenv("PORT", "8080")
     endpoints_to_check = [
-        f"http://127.0.0.1:{port}/health",
-        f"http://127.0.0.1:8080/health",
-        f"http://127.0.0.1:8000/health",
         f"{base_url}/health",
         f"{base_url}/api/dashboard/data",
         f"{base_url}/",
@@ -266,10 +262,11 @@ def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[s
     dashboard_url = f"{base_url}/dashboard"
 
     last_error = None
+    # 1. Fast check against Cloud Run public URL (5s timeout)
     for endpoint in endpoints_to_check:
         try:
             req = urllib.request.Request(endpoint, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
-            with urllib.request.urlopen(req, timeout=3) as res:
+            with urllib.request.urlopen(req, timeout=5) as res:
                 if res.status in (200, 301, 302, 307, 308):
                     return {
                         "is_online": True,
@@ -278,6 +275,24 @@ def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[s
                         "health_endpoint": endpoint,
                         "http_code": res.status,
                         "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
+                    }
+        except Exception as e:
+            last_error = str(e)
+            continue
+
+    # 2. Auto-trigger/wake up Cloud Run service on prompt request if cold-started (15s timeout)
+    for endpoint in endpoints_to_check:
+        try:
+            req = urllib.request.Request(endpoint, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0-Wakeup"})
+            with urllib.request.urlopen(req, timeout=15) as res:
+                if res.status in (200, 301, 302, 307, 308):
+                    return {
+                        "is_online": True,
+                        "status": "ONLINE",
+                        "dashboard_url": dashboard_url,
+                        "health_endpoint": endpoint,
+                        "http_code": res.status,
+                        "message": f"Cloud Run telemetry backend successfully STARTED & ONLINE at {dashboard_url}"
                     }
         except Exception as e:
             last_error = str(e)
