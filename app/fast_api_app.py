@@ -120,6 +120,11 @@ app.description = "API for interacting with the Agent cymbal-coffee-procurement-
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
 
+@app.get("/health")
+def health_check() -> dict:
+    return {"status": "healthy", "service": "cymbal-coffee-procurement-dashboard"}
+
+
 @app.get("/", response_class=HTMLResponse)
 @app.get("/dashboard", response_class=HTMLResponse)
 def get_dashboard() -> HTMLResponse:

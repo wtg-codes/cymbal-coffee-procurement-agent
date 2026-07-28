@@ -253,34 +253,34 @@ def get_simulation_status() -> dict[str, Any]:
 
 def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
     """Check if the Cloud Run synthetic telemetry & dashboard backend is online and responding."""
-    health_url = f"{url.rstrip('/')}/health"
-    dashboard_url = f"{url.rstrip('/')}/dashboard"
-    try:
-        req = urllib.request.Request(health_url, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
-        with urllib.request.urlopen(req, timeout=3) as res:
-            if res.status == 200:
-                return {
-                    "is_online": True,
-                    "status": "ONLINE",
-                    "dashboard_url": dashboard_url,
-                    "health_endpoint": health_url,
-                    "http_code": 200,
-                    "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
-                }
-    except Exception as e:
-        return {
-            "is_online": False,
-            "status": "OFFLINE",
-            "dashboard_url": dashboard_url,
-            "health_endpoint": health_url,
-            "error": str(e),
-            "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is DOWN or unreachable. Please verify/start the Cloud Run service."
-        }
+    base_url = url.rstrip("/")
+    endpoints_to_check = [f"{base_url}/health", f"{base_url}/api/dashboard/data", f"{base_url}/"]
+    dashboard_url = f"{base_url}/dashboard"
+
+    last_error = None
+    for endpoint in endpoints_to_check:
+        try:
+            req = urllib.request.Request(endpoint, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
+            with urllib.request.urlopen(req, timeout=3) as res:
+                if res.status in (200, 301, 302, 307, 308):
+                    return {
+                        "is_online": True,
+                        "status": "ONLINE",
+                        "dashboard_url": dashboard_url,
+                        "health_endpoint": endpoint,
+                        "http_code": res.status,
+                        "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
+                    }
+        except Exception as e:
+            last_error = str(e)
+            continue
+
     return {
         "is_online": False,
         "status": "OFFLINE",
         "dashboard_url": dashboard_url,
-        "health_endpoint": health_url,
+        "health_endpoint": f"{base_url}/health",
+        "error": last_error,
         "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is unreachable."
     }
 
