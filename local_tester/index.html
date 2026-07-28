@@ -1,940 +1,938 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Cymbal Coffee - A2UI Local Tester</title>
-    <style>
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #0f172a; color: #f8fafc; }
-        .container { max-width: 900px; margin: 0 auto; background: #1e293b; padding: 24px; border-radius: 12px; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5); }
-        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 16px; margin-bottom: 20px; }
-        .title { font-size: 1.3rem; font-weight: 700; color: #f59e0b; display: flex; align-items: center; gap: 8px; }
-        .chat-box { border: 1px solid #334155; padding: 16px; min-height: 250px; height: auto; overflow: visible; margin-bottom: 16px; background: #0f172a; border-radius: 8px; }
-        .msg { margin-bottom: 16px; line-height: 1.5; }
-        .msg-user { color: #38bdf8; font-weight: 600; }
-        .msg-agent { color: #f8fafc; }
-        .msg-system { color: #94a3b8; font-style: italic; font-size: 0.85rem; }
-        
-        /* A2UI Component Styles */
-        .a2ui-card { border: 1px solid #334155; border-left: 4px solid #f59e0b; padding: 18px; margin: 12px 0; border-radius: 8px; background: #1e293b; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2); }
-        .a2ui-column { display: flex; flex-direction: column; gap: 10px; }
-        .a2ui-row { display: flex; flex-direction: row; gap: 10px; align-items: center; }
-        .a2ui-h1 { font-size: 1.4rem; font-weight: 700; color: #f8fafc; margin: 0 0 4px 0; }
-        .a2ui-h2 { font-size: 1.2rem; font-weight: 600; color: #f8fafc; margin: 0 0 4px 0; }
-        .a2ui-h3 { font-size: 1.05rem; font-weight: 600; color: #cbd5e1; margin: 0 0 2px 0; }
-        .a2ui-body { font-size: 0.95rem; color: #e2e8f0; margin: 0; }
-        .a2ui-button { background: #3b82f6; color: white; padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 0.9rem; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; }
-        .a2ui-button:hover { background: #2563eb; transform: translateY(-1px); }
-        .a2ui-badge { display: inline-block; padding: 4px 8px; border-radius: 4px; font-weight: 700; font-size: 0.75rem; text-transform: uppercase; }
-        .badge-optimal { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
-        .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
-        .badge-critical { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.4); }
-        
-        .a2ui-divider { border: none; border-top: 1px solid #334155; margin: 4px 0; }
-        .a2ui-divider-vertical { border: none; border-left: 1px solid #334155; height: 100%; margin: 0 8px; align-self: stretch; }
-        .a2ui-textfield { width: 100%; }
-        .a2ui-textfield label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
-        .a2ui-textfield input, .a2ui-textfield textarea { width: 100%; padding: 10px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #f8fafc; font-size: 0.9rem; }
-        .a2ui-textfield input:focus, .a2ui-textfield textarea:focus { outline: none; border-color: #f59e0b; }
-        .a2ui-select { width: 100%; }
-        .a2ui-select label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
-        .a2ui-select select { width: 100%; padding: 10px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #f8fafc; font-size: 0.9rem; appearance: auto; }
-        .a2ui-checkbox { display: flex; align-items: center; gap: 8px; cursor: pointer; color: #e2e8f0; }
-        .a2ui-checkbox input { width: 18px; height: 18px; accent-color: #f59e0b; }
-        .a2ui-slider { width: 100%; }
-        .a2ui-slider label { display: block; font-size: 0.8rem; color: #94a3b8; margin-bottom: 4px; }
-        .a2ui-slider input { width: 100%; accent-color: #f59e0b; }
-        .a2ui-slider .slider-value { color: #f59e0b; font-weight: 600; font-size: 0.9rem; }
-        .a2ui-image { max-width: 100%; border-radius: 6px; }
-        .a2ui-image.icon { width: 24px; height: 24px; }
-        .a2ui-image.avatar { width: 48px; height: 48px; border-radius: 50%; }
-        .a2ui-image.smallFeature { max-width: 80px; }
-        .a2ui-image.mediumFeature { max-width: 200px; }
-        .a2ui-iframe { width: 100%; border: 1px solid #334155; border-radius: 6px; }
-        .a2ui-tabs-header { display: flex; gap: 0; border-bottom: 2px solid #334155; margin-bottom: 12px; }
-        .a2ui-tab-btn { padding: 8px 16px; background: none; border: none; color: #94a3b8; cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent; margin-bottom: -2px; }
-        .a2ui-tab-btn.active { color: #f59e0b; border-bottom-color: #f59e0b; }
-        .a2ui-icon { font-family: 'Material Icons'; font-size: 20px; color: #94a3b8; }
-        .a2ui-caption { font-size: 0.82rem; color: #94a3b8; margin: 0; }
-        .a2ui-h4 { font-size: 0.95rem; font-weight: 600; color: #cbd5e1; margin: 0; }        
-        .input-group { display: flex; gap: 10px; }
-        input[type="text"] { flex-grow: 1; padding: 12px; border: 1px solid #334155; border-radius: 6px; background: #0f172a; color: #f8fafc; font-size: 0.95rem; }
-        input[type="text"]:focus { outline: none; border-color: #f59e0b; }
-        pre { background: #020617; padding: 12px; border-radius: 6px; border: 1px solid #334155; overflow-x: auto; color: #38bdf8; font-size: 0.82rem; }
-        details { margin-top: 15px; }
-        summary { cursor: pointer; color: #f59e0b; font-weight: 600; font-size: 0.9rem; }
-        .session-info { font-size: 0.85rem; color: #94a3b8; }
-        .backend-status { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; margin-left: 12px; transition: all 0.3s; }
-        .status-online { background: rgba(34, 197, 94, 0.2); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.4); }
-        .status-offline { background: rgba(239, 68, 68, 0.2); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A2UI Local Tester — Cymbal Coffee</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #1e2530;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #f59e0b;
+      --accent-dim: rgba(245,158,11,.15);
+      --red: #f85149;
+      --green: #3fb950;
+      --blue: #58a6ff;
+      --radius: 10px;
+      --font: 'Inter', system-ui, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Header ─────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 1rem; letter-spacing: -0.3px;
+    }
+    .logo .badge {
+      font-size: 0.65rem; font-weight: 600; letter-spacing: 0.5px;
+      background: var(--accent-dim); color: var(--accent);
+      padding: 2px 7px; border-radius: 999px; border: 1px solid var(--accent);
+    }
+    .session-bar {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.78rem; color: var(--text-muted);
+    }
+    #session-id { font-family: monospace; color: var(--blue); }
+    .btn-sm {
+      padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--text); font-size: 0.78rem;
+      cursor: pointer; transition: border-color .2s, background .2s;
+    }
+    .btn-sm:hover { border-color: var(--accent); background: var(--accent-dim); }
+
+    /* ─── Layout ─────────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 53px);
+    }
+
+    /* ─── Chat Panel ──────────────────────────────────────────── */
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+      border-right: 1px solid var(--border);
+    }
+    #chat {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      scroll-behavior: smooth;
+    }
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 90%; }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.agent { align-self: flex-start; }
+    .msg.system { align-self: center; }
+    .bubble {
+      padding: 10px 14px; border-radius: 12px;
+      font-size: 0.88rem; line-height: 1.55;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .msg.user .bubble { background: var(--accent); color: #000; border-radius: 12px 12px 2px 12px; }
+    .msg.agent .bubble { background: var(--surface2); border: 1px solid var(--border); border-radius: 2px 12px 12px 12px; }
+    .msg.system .bubble { background: transparent; color: var(--text-muted); font-size: 0.78rem; font-style: italic; }
+    .msg-label { font-size: 0.7rem; color: var(--text-muted); padding: 0 4px; }
+
+    /* Typing indicator */
+    .typing { display: flex; gap: 5px; padding: 12px 14px; }
+    .typing span {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+    .typing span:nth-child(2) { animation-delay: .2s; }
+    .typing span:nth-child(3) { animation-delay: .4s; }
+    @keyframes bounce {
+      0%,80%,100% { transform: scale(0.8); opacity: .5; }
+      40% { transform: scale(1.1); opacity: 1; }
+    }
+
+    /* Input */
+    .input-row {
+      display: flex; gap: 8px; padding: 14px;
+      border-top: 1px solid var(--border); background: var(--surface);
+    }
+    #input {
+      flex: 1; padding: 10px 14px; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font-size: 0.9rem; font-family: var(--font);
+      outline: none; transition: border-color .2s;
+    }
+    #input:focus { border-color: var(--accent); }
+    #send-btn {
+      padding: 10px 20px; border-radius: 8px; border: none;
+      background: var(--accent); color: #000; font-weight: 600;
+      font-size: 0.88rem; cursor: pointer; transition: opacity .2s;
+    }
+    #send-btn:hover { opacity: .85; }
+    #send-btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ─── UI Render Panel ─────────────────────────────────────── */
+    .render-panel {
+      width: 460px;
+      min-width: 360px;
+      overflow-y: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .render-panel-header {
+      font-size: 0.72rem; font-weight: 600; letter-spacing: 0.8px;
+      text-transform: uppercase; color: var(--text-muted);
+      padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    }
+    .render-empty {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; height: 200px; color: var(--text-muted);
+      text-align: center; font-size: 0.85rem;
+    }
+    .render-empty .material-icons-round { font-size: 3rem; opacity: .3; }
+
+    /* Debug / raw JSON toggle */
+    .raw-toggle {
+      font-size: 0.72rem; cursor: pointer; color: var(--text-muted);
+      display: flex; align-items: center; gap: 4px;
+      user-select: none; margin-top: 8px;
+    }
+    .raw-toggle:hover { color: var(--blue); }
+    #raw-json { display: none; }
+    #raw-json.visible { display: block; }
+    pre#raw-json {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 6px; padding: 10px; font-size: 0.72rem;
+      overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+      max-height: 300px; overflow-y: auto;
+    }
+
+    /* ═══════════════════════════════════════════════════════════
+       A2UI Component Renderers
+    ═══════════════════════════════════════════════════════════ */
+
+    /* Card */
+    .a2ui-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.3);
+    }
+
+    /* Column */
+    .a2ui-column {
+      display: flex; flex-direction: column; gap: 10px;
+    }
+
+    /* Row */
+    .a2ui-row {
+      display: flex; flex-direction: row; gap: 10px;
+      align-items: center; flex-wrap: wrap;
+    }
+    .a2ui-row.spaceAround { justify-content: space-around; }
+    .a2ui-row.spaceBetween { justify-content: space-between; }
+    .a2ui-row.spaceEvenly { justify-content: space-evenly; }
+    .a2ui-row.center { justify-content: center; }
+    .a2ui-row.end { justify-content: flex-end; }
+
+    /* Text */
+    .a2ui-text { color: var(--text); line-height: 1.5; }
+    .a2ui-text.h1 { font-size: 1.4rem; font-weight: 700; }
+    .a2ui-text.h2 { font-size: 1.15rem; font-weight: 600; }
+    .a2ui-text.h3 { font-size: 1rem; font-weight: 600; }
+    .a2ui-text.h4 { font-size: 0.9rem; font-weight: 600; }
+    .a2ui-text.h5 { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+    .a2ui-text.caption { font-size: 0.75rem; color: var(--text-muted); }
+    .a2ui-text.body { font-size: 0.88rem; }
+
+    /* Button */
+    .a2ui-btn {
+      padding: 9px 16px; border-radius: 8px; border: 1px solid var(--accent);
+      background: var(--accent-dim); color: var(--accent);
+      font-size: 0.85rem; font-weight: 600; font-family: var(--font);
+      cursor: pointer; transition: background .2s, transform .1s;
+      display: inline-flex; align-items: center; gap: 6px;
+    }
+    .a2ui-btn:hover { background: var(--accent); color: #000; transform: translateY(-1px); }
+    .a2ui-btn.primary {
+      background: var(--accent); color: #000;
+    }
+    .a2ui-btn.primary:hover { opacity: .85; }
+
+    /* Divider */
+    .a2ui-divider {
+      border: none; border-top: 1px solid var(--border);
+      margin: 4px 0; width: 100%;
+    }
+    .a2ui-divider.vertical {
+      border: none; border-left: 1px solid var(--border);
+      height: 100%; margin: 0 4px; align-self: stretch;
+    }
+
+    /* TextField */
+    .a2ui-field { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+    .a2ui-field label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+    .a2ui-field input, .a2ui-field textarea, .a2ui-field select {
+      padding: 9px 12px; border-radius: 7px;
+      border: 1px solid var(--border); background: var(--surface2);
+      color: var(--text); font-size: 0.88rem; font-family: var(--font);
+      outline: none; transition: border-color .2s; width: 100%;
+    }
+    .a2ui-field input:focus, .a2ui-field textarea:focus, .a2ui-field select:focus {
+      border-color: var(--accent);
+    }
+
+    /* MultipleChoice */
+    .a2ui-mc { display: flex; flex-direction: column; gap: 5px; width: 100%; }
+    .a2ui-mc label { font-size: 0.75rem; color: var(--text-muted); font-weight: 500; }
+
+    /* CheckBox */
+    .a2ui-checkbox {
+      display: flex; align-items: center; gap: 8px;
+      cursor: pointer; font-size: 0.88rem;
+    }
+    .a2ui-checkbox input { width: 16px; height: 16px; accent-color: var(--accent); cursor: pointer; }
+
+    /* Slider */
+    .a2ui-slider { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+    .a2ui-slider label { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); }
+    .a2ui-slider label span { color: var(--accent); font-weight: 600; }
+    .a2ui-slider input[type=range] { width: 100%; accent-color: var(--accent); }
+
+    /* Image */
+    .a2ui-image { max-width: 100%; border-radius: 8px; display: block; }
+    .a2ui-image.icon { width: 24px; height: 24px; object-fit: contain; }
+    .a2ui-image.avatar { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; }
+    .a2ui-image.smallFeature { max-width: 80px; }
+    .a2ui-image.mediumFeature { max-width: 200px; }
+
+    /* Icon */
+    .a2ui-icon { font-size: 1.5rem; vertical-align: middle; color: var(--accent); }
+
+    /* Iframe */
+    .a2ui-iframe {
+      width: 100%; border: 1px solid var(--border);
+      border-radius: 8px; display: block;
+    }
+
+    /* Tabs */
+    .a2ui-tabs { display: flex; flex-direction: column; gap: 0; }
+    .a2ui-tab-bar { display: flex; border-bottom: 2px solid var(--border); }
+    .a2ui-tab-btn {
+      padding: 8px 16px; background: none; border: none;
+      color: var(--text-muted); font-size: 0.85rem; cursor: pointer;
+      border-bottom: 2px solid transparent; margin-bottom: -2px;
+      transition: color .2s, border-color .2s; font-family: var(--font);
+    }
+    .a2ui-tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .a2ui-tab-content { padding-top: 12px; }
+
+    /* Unknown fallback */
+    .a2ui-unknown {
+      border: 1px dashed #f59e0b44; padding: 8px 12px; border-radius: 6px;
+      background: #f59e0b0a; font-size: 0.78rem; color: var(--text-muted);
+    }
+
+    /* Validation error banner */
+    .validation-error {
+      background: rgba(248,81,73,.1); border: 1px solid var(--red);
+      border-radius: 8px; padding: 10px 14px; font-size: 0.82rem;
+      color: var(--red); display: flex; align-items: flex-start; gap: 8px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <div class="title">
-                <span>☕ Cymbal Coffee - A2UI Local Tester</span>
-                <span id="backend-status" class="backend-status status-offline">🔴 Checking Backend...</span>
-            </div>
-            <div class="session-info">
-                <span id="session-id-display"></span>
-                <button onclick="startNewSession()" class="a2ui-button" style="background: #ef4444; padding: 6px 12px; margin-left: 10px;">Reset</button>
-            </div>
-        </div>
-        
-        <div class="chat-box" id="chat">
-            <div class="msg msg-system">A2UI Local Test Harness Active. Ready for queries.</div>
-        </div>
-        
-        <div class="input-group">
-            <input type="text" id="input" placeholder="Type prompt (e.g. 'Check inventory telemetry for all stores')...">
-            <button onclick="sendMessage()" class="a2ui-button">Send</button>
-        </div>
-        
-        <details open style="margin-top: 15px;">
-            <summary style="color: #38bdf8; font-weight: 600;">Live Diagnostics Console</summary>
-            <pre id="diag-log" style="height: 140px; overflow-y: auto; background: #020617; color: #4ade80; font-family: monospace; font-size: 0.8rem; padding: 10px; margin-top: 5px; border-radius: 6px; border: 1px solid #334155;"></pre>
-        </details>
-        
-        <details style="margin-top: 10px;">
-            <summary>Show Raw A2UI JSON Payload</summary>
-            <pre id="json-dump">No A2UI payload received yet.</pre>
-        </details>
+
+<header>
+  <div class="logo">
+    ☕ A2UI Local Tester
+    <span class="badge">v0.8</span>
+  </div>
+  <div class="session-bar">
+    Session: <span id="session-id">—</span>
+    <button class="btn-sm" id="new-session-btn">New Session</button>
+  </div>
+</header>
+
+<div class="layout">
+
+  <!-- Chat -->
+  <div class="chat-panel">
+    <div id="chat"></div>
+    <div class="input-row">
+      <input id="input" type="text"
+        placeholder="Ask the agent anything… (Enter to send)"
+        autocomplete="off">
+      <button id="send-btn">Send</button>
     </div>
+  </div>
 
-    <script>
-        let dataModel = {};
-        let sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
+  <!-- A2UI Render Panel -->
+  <div class="render-panel">
+    <div class="render-panel-header">🎨 Rendered UI Surface</div>
+    <div id="render-root">
+      <div class="render-empty">
+        <span class="material-icons-round">widgets</span>
+        Send a message to render the A2UI card here.
+      </div>
+    </div>
+    <div class="raw-toggle" onclick="toggleRaw()">
+      <span class="material-icons-round" style="font-size:1rem">code</span>
+      Toggle raw A2UI JSON
+    </div>
+    <pre id="raw-json">No A2UI data yet.</pre>
+  </div>
 
-        function updateSessionDisplay() {
-            document.getElementById('session-id-display').innerText = `Session ID: ${sessionId}`;
+</div>
+
+<script>
+'use strict';
+
+// ──────────────────────────────────────────────────────────────
+// State
+// ──────────────────────────────────────────────────────────────
+let sessionId = mkId();
+let dataModel = {};
+let components = {};  // id → component dict (flat map for fast lookup)
+let busy = false;
+
+document.getElementById('session-id').textContent = sessionId.slice(0, 12);
+document.getElementById('new-session-btn').addEventListener('click', newSession);
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+document.getElementById('send-btn').addEventListener('click', sendMessage);
+
+function mkId() {
+  return 'ses_' + Math.random().toString(36).slice(2, 11);
+}
+
+function newSession() {
+  sessionId = mkId();
+  dataModel = {};
+  components = {};
+  document.getElementById('session-id').textContent = sessionId.slice(0, 12);
+  document.getElementById('chat').innerHTML = '';
+  document.getElementById('render-root').innerHTML =
+    '<div class="render-empty"><span class="material-icons-round">widgets</span>New session started.</div>';
+  document.getElementById('raw-json').textContent = 'No A2UI data yet.';
+  addChat('system', 'New session started.');
+}
+
+function toggleRaw() {
+  document.getElementById('raw-json').classList.toggle('visible');
+}
+
+// ──────────────────────────────────────────────────────────────
+// Chat UI helpers
+// ──────────────────────────────────────────────────────────────
+function addChat(role, text) {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = `msg ${role}`;
+
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? 'You' : role === 'agent' ? 'Agent' : '';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+
+  if (label.textContent) wrap.appendChild(label);
+  wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return wrap;
+}
+
+function addTyping() {
+  const chat = document.getElementById('chat');
+  const wrap = document.createElement('div');
+  wrap.className = 'msg agent';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble typing';
+  bubble.innerHTML = '<span></span><span></span><span></span>';
+  wrap.appendChild(bubble);
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+  return wrap;
+}
+
+// ──────────────────────────────────────────────────────────────
+// Send message
+// ──────────────────────────────────────────────────────────────
+async function sendMessage() {
+  const inp = document.getElementById('input');
+  const text = inp.value.trim();
+  if (!text || busy) return;
+  inp.value = '';
+  addChat('user', text);
+  await sendPayload({ message: { text } });
+}
+
+async function sendUserAction(userAction, msgText) {
+  addChat('user', msgText || 'Action triggered');
+  const payload = {
+    message: {
+      text: msgText || 'Action triggered',
+      parts: [{
+        data: { userAction },
+        metadata: { mimeType: 'application/json+a2ui' }
+      }]
+    }
+  };
+  await sendPayload(payload);
+}
+
+async function sendPayload(params) {
+  if (busy) return;
+  busy = true;
+  document.getElementById('send-btn').disabled = true;
+  const typing = addTyping();
+
+  try {
+    const res = await fetch('/jsonrpc', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        method: 'message/send',
+        params: { ...params, session_id: sessionId },
+        id: Date.now()
+      })
+    });
+    const data = await res.json();
+    typing.remove();
+    handleResponse(data);
+  } catch (err) {
+    typing.remove();
+    addChat('system', `Connection error: ${err.message}`);
+  } finally {
+    busy = false;
+    document.getElementById('send-btn').disabled = false;
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// Response handler
+// ──────────────────────────────────────────────────────────────
+function handleResponse(data) {
+  if (data.error) {
+    addChat('system', `Error ${data.error.code}: ${data.error.message}`);
+    return;
+  }
+
+  const parts = data.result?.message?.parts || [];
+  let hasA2UI = false;
+
+  // Collect all A2UI messages across parts for logging
+  const allA2UI = [];
+
+  for (const part of parts) {
+    if (part.text) {
+      addChat('agent', part.text);
+    }
+
+    const mime = part.metadata?.mimeType || '';
+    if (part.data && (mime === 'application/json+a2ui' || mime === 'application/a2ui+json')) {
+      processA2UIMessage(part.data);
+      allA2UI.push(part.data);
+      hasA2UI = true;
+    }
+  }
+
+  if (allA2UI.length) {
+    document.getElementById('raw-json').textContent = JSON.stringify(allA2UI, null, 2);
+  }
+
+  if (!hasA2UI && parts.length === 0) {
+    addChat('agent', '(No response)');
+  }
+}
+
+// ──────────────────────────────────────────────────────────────
+// A2UI message dispatcher
+// ──────────────────────────────────────────────────────────────
+function processA2UIMessage(msg) {
+  if (msg.beginRendering) {
+    // Reset component map for fresh render
+    components = {};
+  }
+  if (msg.dataModelUpdate) {
+    handleDataModelUpdate(msg.dataModelUpdate);
+  }
+  if (msg.surfaceUpdate) {
+    handleSurfaceUpdate(msg.surfaceUpdate);
+  }
+  if (msg.deleteSurface) {
+    document.getElementById('render-root').innerHTML =
+      '<div class="render-empty"><span class="material-icons-round">widgets</span>Surface cleared.</div>';
+    components = {};
+  }
+}
+
+function handleDataModelUpdate(update) {
+  for (const item of update.contents || []) {
+    const val = item.valueString ?? item.valueNumber ?? item.valueBoolean ?? item.valueMap ?? null;
+    dataModel[item.key] = val;
+    // Also store with/without leading slash for resilience
+    const altKey = item.key.startsWith('/') ? item.key.slice(1) : '/' + item.key;
+    dataModel[altKey] = val;
+  }
+}
+
+function handleSurfaceUpdate(update) {
+  // Build flat component map
+  for (const entry of update.components || []) {
+    components[entry.id] = entry.component;
+  }
+
+  // Find root: first component in list, or look for Card at top
+  const compsArr = update.components || [];
+  if (!compsArr.length) return;
+
+  // Root is typically the first entry
+  const rootId = compsArr[0].id;
+  const rendered = renderComponent(rootId);
+
+  const root = document.getElementById('render-root');
+  root.innerHTML = '';
+  if (rendered) root.appendChild(rendered);
+}
+
+// ──────────────────────────────────────────────────────────────
+// A2UI Component Renderers
+// ──────────────────────────────────────────────────────────────
+function resolveValue(valObj) {
+  if (!valObj) return '';
+  if (valObj.literalString !== undefined) return valObj.literalString;
+  if (valObj.literalNumber !== undefined) return String(valObj.literalNumber);
+  if (valObj.literalBoolean !== undefined) return valObj.literalBoolean;
+  if (valObj.path !== undefined) {
+    const v = dataModel[valObj.path] ?? dataModel[valObj.path.replace(/^\//, '')];
+    return v !== undefined ? String(v) : '';
+  }
+  return '';
+}
+
+function renderComponent(id) {
+  const comp = components[id];
+  if (!comp) {
+    const el = document.createElement('div');
+    el.className = 'a2ui-unknown';
+    el.textContent = `[Missing component: ${id}]`;
+    return el;
+  }
+
+  const type = Object.keys(comp)[0];
+  const props = comp[type] || {};
+
+  switch (type) {
+
+    case 'Card': {
+      const el = document.createElement('div');
+      el.className = 'a2ui-card';
+      if (props.child) el.appendChild(renderComponent(props.child));
+      return el;
+    }
+
+    case 'Column': {
+      const el = document.createElement('div');
+      el.className = 'a2ui-column';
+      if (props.alignment) el.style.alignItems =
+        props.alignment === 'start' ? 'flex-start' :
+        props.alignment === 'end' ? 'flex-end' : props.alignment;
+      renderChildren(props.children, el);
+      return el;
+    }
+
+    case 'Row': {
+      const el = document.createElement('div');
+      el.className = `a2ui-row ${props.distribution || ''}`;
+      if (props.alignment) el.style.alignItems =
+        props.alignment === 'start' ? 'flex-start' :
+        props.alignment === 'end' ? 'flex-end' : props.alignment;
+      renderChildren(props.children, el);
+      return el;
+    }
+
+    case 'List': {
+      const el = document.createElement('div');
+      el.className = 'a2ui-column';
+      if (props.direction === 'horizontal') {
+        el.className = 'a2ui-row';
+        el.style.flexWrap = 'wrap';
+      }
+      renderChildren(props.children, el);
+      return el;
+    }
+
+    case 'Text': {
+      const el = document.createElement('div');
+      const hint = props.usageHint || 'body';
+      el.className = `a2ui-text ${hint}`;
+      el.textContent = resolveValue(props.text);
+      return el;
+    }
+
+    case 'Icon': {
+      const el = document.createElement('span');
+      el.className = 'material-icons-round a2ui-icon';
+      el.textContent = resolveValue(props.name);
+      return el;
+    }
+
+    case 'Image': {
+      const el = document.createElement('img');
+      el.className = `a2ui-image ${props.usageHint || ''}`;
+      el.src = resolveValue(props.url);
+      el.alt = resolveValue(props.altText) || '';
+      if (props.fit) el.style.objectFit = props.fit;
+      return el;
+    }
+
+    case 'Divider': {
+      const el = document.createElement('hr');
+      el.className = `a2ui-divider ${props.axis === 'vertical' ? 'vertical' : ''}`;
+      return el;
+    }
+
+    case 'Button': {
+      const btn = document.createElement('button');
+      btn.className = `a2ui-btn ${props.primary ? 'primary' : ''}`;
+
+      // Render label child
+      if (props.child) {
+        const childComp = components[props.child];
+        if (childComp?.Text) {
+          btn.textContent = resolveValue(childComp.Text.text);
+        } else if (childComp) {
+          btn.appendChild(renderComponent(props.child));
+        } else {
+          btn.textContent = props.child;
         }
+      }
 
-        function startNewSession() {
-            sessionId = 'session_' + Math.random().toString(36).substr(2, 9);
-            updateSessionDisplay();
-            dataModel = {};
-            document.getElementById('chat').innerHTML = '<div class="msg msg-system">Session reset.</div>';
-            document.getElementById('json-dump').innerText = 'No A2UI payload received yet.';
-        }
+      if (props.action) {
+        btn.addEventListener('click', () => handleButtonClick(props.action));
+      }
+      return btn;
+    }
 
-        let isBackendOnline = false;
-        async function checkBackendHealth() {
-            const statusEl = document.getElementById('backend-status');
-            try {
-                const res = await fetch('/health', { cache: 'no-store' });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (!isBackendOnline) {
-                        logDiag(`[HEALTH] Backend online: ${data.agent || 'ok'}`);
-                    }
-                    isBackendOnline = true;
-                    statusEl.className = 'backend-status status-online';
-                    statusEl.innerHTML = '🟢 Backend Online (port 8001)';
-                } else {
-                    throw new Error(`HTTP ${res.status}`);
-                }
-            } catch (err) {
-                if (isBackendOnline || statusEl.innerText.includes('Checking') || statusEl.innerText.includes('Online')) {
-                    logDiag(`[ERROR] Backend unreachable: ${err.message}`);
-                }
-                isBackendOnline = false;
-                statusEl.className = 'backend-status status-offline';
-                statusEl.innerHTML = '🔴 Backend Offline — Run "uv run python local_tester/server.py"';
-            }
-        }
-        checkBackendHealth();
-        setInterval(checkBackendHealth, 3000);
+    case 'TextField': {
+      const wrap = document.createElement('div');
+      wrap.className = 'a2ui-field';
+      const lbl = document.createElement('label');
+      lbl.textContent = resolveValue(props.label);
 
-        updateSessionDisplay();
+      const fieldType = props.textFieldType || 'shortText';
+      let inp;
+      if (fieldType === 'longText') {
+        inp = document.createElement('textarea');
+        inp.rows = 3;
+      } else {
+        inp = document.createElement('input');
+        inp.type = fieldType === 'number' ? 'number' :
+                   fieldType === 'obscured' ? 'password' : 'text';
+      }
+      inp.value = resolveValue(props.text);
 
-        document.getElementById('input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') sendMessage();
+      if (props.text?.path) {
+        const p = props.text.path;
+        inp.addEventListener('input', e => {
+          dataModel[p] = e.target.value;
+          dataModel[p.replace(/^\//, '')] = e.target.value;
         });
+      }
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      return wrap;
+    }
 
-        async function sendMessage() {
-            const input = document.getElementById('input');
-            const text = input.value;
-            if (!text.trim()) return;
-            input.value = '';
-            
-            appendMsg('User', text);
-            await sendPayload({ message: { text: text } });
-        }
+    case 'MultipleChoice': {
+      const wrap = document.createElement('div');
+      wrap.className = 'a2ui-mc';
+      const sel = document.createElement('select');
+      const emptyOpt = document.createElement('option');
+      emptyOpt.value = ''; emptyOpt.textContent = 'Select…';
+      sel.appendChild(emptyOpt);
 
-        async function sendUserAction(userAction, messageText) {
-            appendMsg('User', messageText || "Triggered UI Action");
-            
-            const payload = {
-                message: {
-                    text: messageText || "Triggered UI Action",
-                    parts: [
-                        {
-                            data: { userAction: userAction },
-                            metadata: { mimeType: 'application/json+a2ui' }
-                        }
-                    ]
-                }
-            };
-            await sendPayload(payload);
-        }
+      for (const opt of props.options || []) {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = resolveValue(opt.label);
+        sel.appendChild(o);
+      }
 
-        async function sendPayload(params) {
-            const loadingDiv = appendMsg('System', 'Agent processing request...');
-            try {
-                const response = await fetch('/jsonrpc', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        jsonrpc: '2.0',
-                        method: 'message/send',
-                        params: { ...params, session_id: sessionId },
-                        id: Date.now()
-                    })
-                });
-                
-                const data = await response.json();
-                loadingDiv.remove();
-                handleResponse(data);
-            } catch (error) {
-                loadingDiv.remove();
-                logDiag(`[ERROR] sendPayload failed: ${error.message}`);
-                const errDiv = document.createElement('div');
-                errDiv.className = 'a2ui-card';
-                errDiv.style.borderLeftColor = '#ef4444';
-                errDiv.style.background = 'rgba(239, 68, 68, 0.1)';
-                errDiv.innerHTML = `<h4 style="color: #f87171; margin: 0 0 6px 0; font-size: 1rem;">⚠️ Backend Connection Warning</h4>
-                                    <p style="color: #cbd5e1; font-size: 0.9rem; margin: 0;">Could not connect to A2A backend server on <strong>http://localhost:8001/jsonrpc</strong>.</p>
-                                    <p style="color: #94a3b8; font-size: 0.82rem; margin: 6px 0 0 0;">Please verify the backend server is running by executing: <code style="background:#0f172a; padding:2px 6px; border-radius:4px; color:#4ade80;">uv run python local_tester/server.py</code></p>`;
-                document.getElementById('chat').appendChild(errDiv);
-            }
-        }
+      const selPath = props.selections?.path;
+      if (selPath) {
+        sel.value = dataModel[selPath] || '';
+        sel.addEventListener('change', e => {
+          dataModel[selPath] = e.target.value;
+          dataModel[selPath.replace(/^\//, '')] = e.target.value;
+        });
+      }
+      wrap.appendChild(sel);
+      return wrap;
+    }
 
-        function appendMsg(sender, text) {
-            const chat = document.getElementById('chat');
-            const div = document.createElement('div');
-            div.className = 'msg';
-            if (sender === 'User') {
-                div.innerHTML = `<span class="msg-user">User:</span> ${escapeHtml(text)}`;
-            } else if (sender === 'Agent') {
-                div.innerHTML = `<span style="color: #f59e0b; font-weight: 600;">Agent:</span> ${escapeHtml(text)}`;
-            } else {
-                div.innerHTML = `<span class="msg-system">${escapeHtml(text)}</span>`;
-            }
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
-            return div;
-        }
+    case 'CheckBox': {
+      const label = document.createElement('label');
+      label.className = 'a2ui-checkbox';
+      const inp = document.createElement('input');
+      inp.type = 'checkbox';
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.innerText = text;
-            return div.innerHTML;
-        }
+      const valObj = props.value;
+      if (valObj?.path) {
+        const p = valObj.path;
+        inp.checked = !!dataModel[p];
+        inp.addEventListener('change', e => {
+          dataModel[p] = e.target.checked;
+          dataModel[p.replace(/^\//, '')] = e.target.checked;
+        });
+      } else if (valObj?.literalBoolean !== undefined) {
+        inp.checked = valObj.literalBoolean;
+      }
 
-        function logDiag(msg, level = 'info') {
-            const time = new Date().toLocaleTimeString();
-            const logLine = `[${time}] [${level.toUpperCase()}] ${msg}`;
-            console[level === 'error' ? 'error' : (level === 'warn' ? 'warn' : 'log')](logLine);
-            const diagBox = document.getElementById('diag-log');
-            if (diagBox) {
-                diagBox.innerText += logLine + '\n';
-                diagBox.scrollTop = diagBox.scrollHeight;
-            }
-        }
+      const span = document.createElement('span');
+      span.textContent = resolveValue(props.label);
+      label.appendChild(inp);
+      label.appendChild(span);
+      return label;
+    }
 
-        window.onerror = function(msg, url, lineNo, columnNo, error) {
-            logDiag(`Uncaught Exception: ${msg} at line ${lineNo}:${columnNo}`, 'error');
-            return false;
-        };
+    case 'Slider': {
+      const wrap = document.createElement('div');
+      wrap.className = 'a2ui-slider';
+      const lbl = document.createElement('label');
+      const lbl_text = document.createElement('span');
+      lbl_text.textContent = resolveValue(props.label) || 'Value';
+      const val_span = document.createElement('span');
+      const inp = document.createElement('input');
+      inp.type = 'range';
+      inp.min = props.minValue ?? 0;
+      inp.max = props.maxValue ?? 100;
 
-        function handleResponse(data) {
-            logDiag(`Received JSON-RPC response ID: ${data.id}`);
-            if (data.error) {
-                logDiag(`JSON-RPC Error: ${data.error.message}`, 'error');
-                appendMsg('Error', data.error.message);
-                return;
-            }
-            
-            const parts = data.result && data.result.message && data.result.message.parts ? data.result.message.parts : [];
-            logDiag(`Parts count in response: ${parts.length}`);
-            
-            for (let i = 0; i < parts.length; i++) {
-                const part = parts[i];
-                if (part.text) {
-                    logDiag(`Part ${i}: Text (${part.text.length} chars)`);
-                    appendMsg('Agent', part.text);
-                }
-                if (part.data && part.metadata && part.metadata.mimeType === 'application/json+a2ui') {
-                    logDiag(`Part ${i}: A2UI DataPart detected!`);
-                    const uiData = part.data;
-                    document.getElementById('json-dump').innerText = JSON.stringify(uiData, null, 2);
-                    renderA2UIMessage(uiData);
-                }
-            }
-        }
+      const valPath = props.value?.path;
+      const initVal = valPath
+        ? (dataModel[valPath] ?? props.minValue ?? 0)
+        : (props.value?.literalNumber ?? 0);
+      inp.value = initVal;
+      val_span.textContent = initVal;
 
-        function renderA2UIMessage(uiData) {
-            const chat = document.getElementById('chat');
-            logDiag(`Starting renderA2UIMessage...`);
-            
-            // Normalize input into a messages array
-            let messages;
-            if (Array.isArray(uiData)) {
-                messages = uiData;
-            } else if (uiData.a2ui_messages) {
-                messages = uiData.a2ui_messages;
-            } else {
-                messages = [uiData];
-            }
+      if (valPath) {
+        inp.addEventListener('input', e => {
+          val_span.textContent = e.target.value;
+          dataModel[valPath] = Number(e.target.value);
+          dataModel[valPath.replace(/^\//, '')] = Number(e.target.value);
+        });
+      }
+      lbl.appendChild(lbl_text);
+      lbl.appendChild(val_span);
+      wrap.appendChild(lbl);
+      wrap.appendChild(inp);
+      return wrap;
+    }
 
-            logDiag(`Messages count: ${messages.length}`);
+    case 'DateTimeInput': {
+      const wrap = document.createElement('div');
+      wrap.className = 'a2ui-field';
+      const inp = document.createElement('input');
+      if (props.enableDate === false && props.enableTime === true) inp.type = 'time';
+      else if (props.enableDate === true && props.enableTime === false) inp.type = 'date';
+      else inp.type = 'datetime-local';
 
-            // Detect if messages is actually a flat component array
-            const PROTOCOL_KEYS = ['beginRendering', 'surfaceUpdate', 'createSurface', 
-                                   'updateComponents', 'dataModelUpdate', 'updateDataModel'];
-            const isProtocol = messages.some(m => PROTOCOL_KEYS.some(k => k in m));
-            const isComponentArray = !isProtocol && messages.length > 0 && 
-                messages.every(m => m.id && (m.type || m.component || m.card || m.text || 
-                    m.column || m.row || m.button || m.divider || m.Card || m.Text || 
-                    m.Column || m.Row || m.Button || m.Divider || m.children || m.child));
+      const valObj = props.value;
+      if (valObj?.path) {
+        const p = valObj.path;
+        inp.value = dataModel[p] || '';
+        inp.addEventListener('change', e => {
+          dataModel[p] = e.target.value;
+          dataModel[p.replace(/^\//, '')] = e.target.value;
+        });
+      } else if (valObj?.literalString) {
+        inp.value = valObj.literalString;
+      }
+      wrap.appendChild(inp);
+      return wrap;
+    }
 
-            logDiag(`isProtocol: ${isProtocol}, isComponentArray: ${isComponentArray}`);
+    case 'Tabs': {
+      const wrap = document.createElement('div');
+      wrap.className = 'a2ui-tabs';
+      const bar = document.createElement('div');
+      bar.className = 'a2ui-tab-bar';
+      const content = document.createElement('div');
+      content.className = 'a2ui-tab-content';
 
-            let currentRoot = null;
-            let components = [];
+      (props.tabItems || []).forEach((tab, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'a2ui-tab-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = resolveValue(tab.title);
+        btn.addEventListener('click', () => {
+          bar.querySelectorAll('.a2ui-tab-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          content.innerHTML = '';
+          if (tab.child) content.appendChild(renderComponent(tab.child));
+        });
+        bar.appendChild(btn);
+      });
 
-            // Check for wrapper object containing components array: { root: "...", components: [...] }
-            if (messages.length === 1 && Array.isArray(messages[0].components)) {
-                components = messages[0].components;
-                currentRoot = messages[0].root || null;
-                logDiag(`Extracted components from single wrapper object (count: ${components.length}, root: ${currentRoot})`);
-            } else if (isComponentArray) {
-                components = messages;
-                logDiag(`Using flat component array (count: ${components.length})`);
-            } else {
-                for (const msg of messages) {
-                    if (msg.dataModelUpdate && msg.dataModelUpdate.contents) {
-                        for (const item of msg.dataModelUpdate.contents) {
-                            dataModel[item.key] = item.valueString || item.valueNumber || item.valueBoolean;
-                        }
-                    }
-                    if (msg.updateDataModel && msg.updateDataModel.value) {
-                        const flattenObj = (obj, prefix) => {
-                            for (const [k, v] of Object.entries(obj)) {
-                                const path = prefix ? `${prefix}/${k}` : k;
-                                if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-                                    flattenObj(v, path);
-                                } else {
-                                    dataModel[path] = v;
-                                }
-                            }
-                        };
-                        flattenObj(msg.updateDataModel.value, '');
-                    }
-                    if (msg.beginRendering && msg.beginRendering.root) currentRoot = msg.beginRendering.root;
-                    if (msg.surfaceUpdate && msg.surfaceUpdate.components) {
-                        components = msg.surfaceUpdate.components;
-                        if (msg.surfaceUpdate.root) currentRoot = msg.surfaceUpdate.root;
-                    }
-                    if (msg.updateComponents && msg.updateComponents.components) {
-                        components = msg.updateComponents.components;
-                    }
-                    if (msg.components && !msg.surfaceUpdate && !msg.updateComponents) {
-                        components = msg.components;
-                        if (msg.root) currentRoot = msg.root;
-                    }
-                }
-            }
+      wrap.appendChild(bar);
+      if (props.tabItems?.[0]?.child) {
+        content.appendChild(renderComponent(props.tabItems[0].child));
+      }
+      wrap.appendChild(content);
+      return wrap;
+    }
 
-            logDiag(`Final components array length: ${components.length}`);
-            
-            if (components.length > 0) {
-                // Find root component: check root property or fallback to first component
-                let rootComp = components.find(c => c.root === true || c.root === 'true');
-                let rootId = currentRoot || (rootComp ? rootComp.id : components[0].id);
-                logDiag(`Root ID determined: ${rootId}`);
-                
-                try {
-                    const renderedNode = buildComponentNode(rootId, components);
-                    if (renderedNode) {
-                        logDiag(`Successfully built DOM node for root '${rootId}'! Appending to chat...`);
-                        chat.appendChild(renderedNode);
-                        chat.scrollTop = chat.scrollHeight;
-                    } else {
-                        logDiag(`buildComponentNode returned NULL for root '${rootId}'!`, 'error');
-                    }
-                } catch(err) {
-                    logDiag(`Error building component tree: ${err.message}\n${err.stack}`, 'error');
-                }
-            } else {
-                logDiag(`No components found to render!`, 'warn');
-            }
-        }
+    case 'WebFrameSrcdoc': {
+      const iframe = document.createElement('iframe');
+      iframe.className = 'a2ui-iframe';
+      iframe.srcdoc = resolveValue(props.srcdoc);
+      iframe.style.height = (props.height || 300) + 'px';
+      iframe.setAttribute('sandbox', 'allow-scripts');
+      return iframe;
+    }
 
-        // Helper: normalize a component entry to get its type and props
-        // Format 1 (v0.8): { id: "x", component: { Card: { child: "y" } } }
-        // Format 2 (v0.9): { id: "x", type: "Card", child: "y" }
-        // Format 3 (key-based): { id: "x", card: { child: "y" } } or { id: "x", Card: { child: "y" } }
-        const KNOWN_TYPES = ['Card','Column','Row','Text','Button','Divider','Image','Icon',
-            'TextField','MultipleChoice','ChoicePicker','CheckBox','Slider','DateTimeInput',
-            'WebFrameSrcdoc','WebFrameUrl','Tabs','Modal','AudioPlayer','Video','List','Chart','GoogleMap','Canvas'];
-        const KNOWN_TYPES_LOWER = KNOWN_TYPES.map(t => t.toLowerCase());
+    case 'WebFrameUrl': {
+      const iframe = document.createElement('iframe');
+      iframe.className = 'a2ui-iframe';
+      iframe.src = resolveValue(props.url);
+      iframe.style.height = (props.height || 300) + 'px';
+      iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
+      return iframe;
+    }
 
-        function normalizeComponent(entry) {
-            if (!entry) return null;
-            // Format 1a: component is a string property, e.g. { id: "x", component: "Card", child: "y" }
-            if (typeof entry.component === 'string') {
-                const { id, component, ...props } = entry;
-                const idx = KNOWN_TYPES_LOWER.indexOf(component.toLowerCase());
-                const type = idx !== -1 ? KNOWN_TYPES[idx] : component;
-                return { type, props };
-            }
-            // Format 1b: v0.8 nested component wrapper, e.g. { id: "x", component: { Card: { child: "y" } } }
-            if (typeof entry.component === 'object' && entry.component !== null) {
-                const typeKey = Object.keys(entry.component)[0];
-                return { type: typeKey, props: entry.component[typeKey] || {} };
-            }
-            // Format 2: v0.9 flat with explicit 'type' field
-            if (entry.type) {
-                const { id, type, ...props } = entry;
-                const idx = KNOWN_TYPES_LOWER.indexOf(type.toLowerCase());
-                const canonicalType = idx !== -1 ? KNOWN_TYPES[idx] : type;
-                return { type: canonicalType, props };
-            }
-            // Format 3: component type as a key on the entry (lowercase or PascalCase)
-            for (const key of Object.keys(entry)) {
-                if (key === 'id' || key === 'root') continue;
-                const idx = KNOWN_TYPES_LOWER.indexOf(key.toLowerCase());
-                if (idx !== -1) {
-                    const canonicalType = KNOWN_TYPES[idx]; // Always PascalCase
-                    const val = entry[key];
-                    const props = (typeof val === 'object' && val !== null) ? val : {};
-                    return { type: canonicalType, props };
-                }
-            }
-            return null;
-        }
+    case 'Modal': {
+      // Render entry point; clicking opens a simple overlay
+      const btn = renderComponent(props.entryPointChild);
+      if (props.contentChild && btn) {
+        btn.addEventListener('click', () => {
+          const overlay = document.createElement('div');
+          overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:999;display:flex;align-items:center;justify-content:center';
+          const box = document.createElement('div');
+          box.style.cssText = 'background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;max-width:480px;width:90%;position:relative';
+          const close = document.createElement('button');
+          close.textContent = '✕';
+          close.style.cssText = 'position:absolute;top:12px;right:12px;background:none;border:none;color:#8b949e;font-size:1.2rem;cursor:pointer';
+          close.onclick = () => overlay.remove();
+          box.appendChild(close);
+          box.appendChild(renderComponent(props.contentChild));
+          overlay.appendChild(box);
+          overlay.onclick = e => { if (e.target === overlay) overlay.remove(); };
+          document.body.appendChild(overlay);
+        });
+      }
+      return btn;
+    }
 
-        // Helper: get children list from either format
-        function getChildrenList(props) {
-            if (!props) return [];
-            // v0.8: { children: { explicitList: [...] } }
-            if (props.children && props.children.explicitList) return props.children.explicitList;
-            // v0.9: { children: [...] } (plain array)
-            if (Array.isArray(props.children)) return props.children;
-            return [];
-        }
+    default: {
+      const el = document.createElement('div');
+      el.className = 'a2ui-unknown';
+      el.textContent = `[Unknown component: ${type} id=${id}]`;
+      return el;
+    }
+  }
+}
 
-        // Helper: extract text string from any variation (literalString, path, string literal, text object)
-        function getTextString(prop) {
-            if (prop === undefined || prop === null) return "";
-            if (typeof prop === 'string') return prop;
-            if (typeof prop === 'number') return String(prop);
-            if (typeof prop === 'object') {
-                if (prop.literalString !== undefined) return prop.literalString;
-                if (typeof prop.text === 'string') return prop.text;
-                if (typeof prop.text === 'object') return getTextString(prop.text);
-                if (prop.path) return dataModel[prop.path] || "";
-            }
-            return "";
-        }
+function renderChildren(childrenSpec, container) {
+  if (!childrenSpec) return;
+  const ids = childrenSpec.explicitList || [];
+  for (const id of ids) {
+    const child = renderComponent(id);
+    if (child) container.appendChild(child);
+  }
+}
 
-        function renderClientSvgBar(items) {
-            if (!items || items.length === 0) {
-                items = [
-                    { label: 'Organic Dark Roast', value: 82, color: '#38bdf8' },
-                    { label: 'Signature Espresso', value: 65, color: '#f59e0b' },
-                    { label: 'Barista Oat Milk', value: 45, color: '#10b981' }
-                ];
-            }
-            const colors = ['#38bdf8', '#f59e0b', '#10b981', '#a855f7', '#ec4899'];
-            let bars = '';
-            let y = 10;
-            items.forEach((item, idx) => {
-                const val = typeof item.value === 'number' ? item.value : (parseInt(item.value) || 50);
-                const name = item.label || item.name || `Item ${idx+1}`;
-                const color = item.color || colors[idx % colors.length];
-                const barW = Math.round((val / 100) * 190);
-                bars += `<text x="5" y="${y+15}" fill="#cbd5e1" font-size="11" font-weight="500">${name.substring(0, 16)}</text>
-                         <rect x="110" y="${y}" width="190" height="22" rx="4" fill="#1e293b"/>
-                         <rect x="110" y="${y}" width="${barW}" height="22" rx="4" fill="${color}"/>
-                         <text x="${115+barW}" y="${y+15}" fill="#f8fafc" font-size="11" font-weight="700">${val}%</text>`;
-                y += 34;
-            });
-            return `<svg width="100%" height="${y+10}" viewBox="0 0 340 ${y+10}" xmlns="http://www.w3.org/2000/svg">${bars}</svg>`;
-        }
+// ──────────────────────────────────────────────────────────────
+// Button action handler
+// ──────────────────────────────────────────────────────────────
+function handleButtonClick(action) {
+  const userAction = { name: action.name, context: {} };
+  let msgText = 'Action: ' + action.name;
 
-        function renderClientSvgPie(items, isDonut) {
-            if (!items || items.length === 0) {
-                items = [
-                    { label: 'Organic Dark Roast', value: 82, color: '#38bdf8' },
-                    { label: 'Signature Espresso', value: 65, color: '#f59e0b' },
-                    { label: 'Barista Oat Milk', value: 45, color: '#10b981' }
-                ];
-            }
-            const colors = ['#38bdf8', '#f59e0b', '#10b981', '#a855f7', '#ec4899'];
-            const r = 45;
-            const circ = 2 * Math.PI * r;
-            const total = items.reduce((acc, i) => acc + (typeof i.value === 'number' ? i.value : (parseInt(i.value) || 0)), 0) || 1;
-            const strokeW = isDonut ? 24 : 46;
-            
-            let offset = 0;
-            let circles = '';
-            let legend = '';
-            
-            items.forEach((item, idx) => {
-                const val = typeof item.value === 'number' ? item.value : (parseInt(item.value) || 0);
-                const color = item.color || colors[idx % colors.length];
-                const name = item.label || item.name || `Item ${idx+1}`;
-                const dash = (val / total) * circ;
-                const gap = circ - dash;
-                
-                circles += `<circle cx="75" cy="75" r="${r}" fill="transparent" stroke="${color}" stroke-width="${strokeW}" stroke-dasharray="${dash.toFixed(2)} ${gap.toFixed(2)}" stroke-dashoffset="${(-offset).toFixed(2)}"/>`;
-                legend += `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#cbd5e1;">
-                             <div style="width:10px;height:10px;border-radius:2px;background:${color};"></div>
-                             <span>${name}: ${val}%</span>
-                           </div>`;
-                offset += dash;
-            });
-            
-            return `<div style="display:flex;align-items:center;gap:20px;padding:8px 0;">
-                      <svg width="150" height="150" viewBox="0 0 150 150" style="transform:rotate(-90deg);" xmlns="http://www.w3.org/2000/svg">
-                        ${circles}
-                      </svg>
-                      <div style="display:flex;flex-direction:column;gap:8px;">
-                        ${legend}
-                      </div>
-                    </div>`;
-        }
+  for (const item of action.context || []) {
+    const val = resolveValue(item.value);
+    userAction.context[item.key] = val;
+    if (item.key === 'message' && val) msgText = String(val);
+  }
 
-        function buildComponentNode(id, components) {
-            const wrapper = components.find(c => c.id === id);
-            if (!wrapper) return null;
-            
-            const normalized = normalizeComponent(wrapper);
-            if (!normalized) return null;
-            
-            const { type, props } = normalized;
-            // Build a synthetic comp object that all handlers can use
-            const comp = {};
-            comp[type] = props;
-            
-            if (comp.Card) {
-                const card = document.createElement('div');
-                card.className = 'a2ui-card';
-                if (comp.Card.title) {
-                    const titleEl = document.createElement('h3');
-                    titleEl.className = 'a2ui-h3';
-                    titleEl.style.color = '#f59e0b';
-                    titleEl.style.marginBottom = '8px';
-                    titleEl.innerText = comp.Card.title;
-                    card.appendChild(titleEl);
-                    const hr = document.createElement('hr');
-                    hr.className = 'a2ui-divider';
-                    card.appendChild(hr);
-                }
-                if (comp.Card.child) {
-                    const childNode = buildComponentNode(comp.Card.child, components);
-                    if (childNode) card.appendChild(childNode);
-                }
-                return card;
-            }
-            
-            if (comp.Column) {
-                const col = document.createElement('div');
-                col.className = 'a2ui-column';
-                const children = getChildrenList(comp.Column);
-                for (const childId of children) {
-                    const childNode = buildComponentNode(childId, components);
-                    if (childNode) col.appendChild(childNode);
-                }
-                return col;
-            }
-            
-            if (comp.Row) {
-                const row = document.createElement('div');
-                row.className = 'a2ui-row';
-                if (comp.Row.mainAxisAlignment === 'spaceBetween' || comp.Row.distribution === 'spaceBetween') {
-                    row.style.justifyContent = 'space-between';
-                } else if (comp.Row.mainAxisAlignment === 'spaceAround' || comp.Row.distribution === 'spaceAround') {
-                    row.style.justifyContent = 'space-around';
-                }
-                const children = getChildrenList(comp.Row);
-                for (const childId of children) {
-                    const childNode = buildComponentNode(childId, components);
-                    if (childNode) row.appendChild(childNode);
-                }
-                return row;
-            }
-            
-            if (comp.Text) {
-                const textObj = comp.Text;
-                const hint = textObj.usageHint || textObj.useageHint || textObj.variant || 'body';
-                const str = getTextString(textObj.text !== undefined ? textObj.text : textObj);
-                
-                let tag = 'p';
-                if (hint === 'h1') tag = 'h1';
-                else if (hint === 'h2') tag = 'h2';
-                else if (hint === 'h3') tag = 'h3';
-                else if (hint === 'h4') tag = 'h4';
-                else if (hint === 'caption') tag = 'span';
-                
-                const el = document.createElement(tag);
-                el.className = `a2ui-${hint}`;
-                
-                // Enhance status text with glowing badges!
-                let html = escapeHtml(str);
-                html = html.replace(/\b(OPTIMAL)\b/g, '<span class="a2ui-badge badge-optimal">OPTIMAL</span>');
-                html = html.replace(/\b(WARNING)\b/g, '<span class="a2ui-badge badge-warning">WARNING</span>');
-                html = html.replace(/\b(CRITICAL|URGENT|STOCKOUT|IMMINENT)\b/g, '<span class="a2ui-badge badge-critical">$1</span>');
-                el.innerHTML = html;
-                return el;
-            }
-            
-            if (comp.Button) {
-                const btnObj = comp.Button;
-                const btn = document.createElement('button');
-                btn.className = 'a2ui-button';
-                
-                let btnLabel = "";
-                if (btnObj.label) {
-                    btnLabel = getTextString(btnObj.label);
-                } else if (btnObj.child) {
-                    const labelComp = components.find(c => c.id === btnObj.child);
-                    if (labelComp) {
-                        const normLabel = normalizeComponent(labelComp);
-                        if (normLabel && normLabel.props) {
-                            btnLabel = getTextString(normLabel.props.text !== undefined ? normLabel.props.text : normLabel.props);
-                        }
-                    }
-                    if (!btnLabel) btnLabel = btnObj.child;
-                } else if (btnObj.text) {
-                    btnLabel = getTextString(btnObj.text);
-                }
-                btn.innerText = btnLabel || "Action";
-                
-                if (btnObj.action) {
-                    btn.onclick = () => {
-                        const actionObj = btnObj.action.event || btnObj.action;
-                        const userAction = {
-                            name: actionObj.name || actionObj.event || "submit",
-                            context: {}
-                        };
-                        if (actionObj.context) {
-                            if (Array.isArray(actionObj.context)) {
-                                for (const item of actionObj.context) {
-                                    if (item.key && item.value) {
-                                        userAction.context[item.key] = getTextString(item.value);
-                                    }
-                                }
-                            } else if (typeof actionObj.context === 'object') {
-                                for (const [k, v] of Object.entries(actionObj.context)) {
-                                    userAction.context[k] = getTextString(v);
-                                }
-                            }
-                        }
-                        const msgStr = userAction.context.message || btnLabel || "ButtonClicked";
-                        sendUserAction(userAction, msgStr);
-                    };
-                }
-                return btn;
-            }
-            
-            if (comp.Divider) {
-                const div = document.createElement('hr');
-                div.className = comp.Divider.axis === 'vertical' ? 'a2ui-divider-vertical' : 'a2ui-divider';
-                return div;
-            }
-            
-            if (comp.TextField) {
-                const tfObj = comp.TextField;
-                const wrapper = document.createElement('div');
-                wrapper.className = 'a2ui-textfield';
-                
-                const label = document.createElement('label');
-                label.innerText = tfObj.label && tfObj.label.literalString ? tfObj.label.literalString : '';
-                wrapper.appendChild(label);
-                
-                const variant = tfObj.variant || 'shortText';
-                const input = document.createElement(variant === 'longText' ? 'textarea' : 'input');
-                if (variant !== 'longText') {
-                    if (variant === 'number') input.type = 'number';
-                    else if (variant === 'obscured') input.type = 'password';
-                    else input.type = 'text';
-                }
-                
-                if (tfObj.text && tfObj.text.path) {
-                    input.value = dataModel[tfObj.text.path] || '';
-                    input.onchange = (e) => dataModel[tfObj.text.path] = e.target.value;
-                } else if (tfObj.text && tfObj.text.literalString) {
-                    input.value = tfObj.text.literalString;
-                }
-                wrapper.appendChild(input);
-                
-                return wrapper;
-            }
-            
-            if (comp.MultipleChoice || comp.ChoicePicker) {
-                const mcObj = comp.MultipleChoice || comp.ChoicePicker;
-                const wrapper = document.createElement('div');
-                wrapper.className = 'a2ui-select';
-                
-                if (mcObj.label && mcObj.label.literalString) {
-                    const label = document.createElement('label');
-                    label.innerText = mcObj.label.literalString;
-                    wrapper.appendChild(label);
-                }
-                
-                const select = document.createElement('select');
-                if (mcObj.options) {
-                    for (const opt of mcObj.options) {
-                        const optionEl = document.createElement('option');
-                        optionEl.value = opt.value;
-                        optionEl.innerText = opt.label && opt.label.literalString ? opt.label.literalString : opt.value;
-                        select.appendChild(optionEl);
-                    }
-                }
-                
-                const path = (mcObj.selections && mcObj.selections.path) || (mcObj.value && mcObj.value.path);
-                if (path) {
-                    select.value = dataModel[path] || '';
-                    select.onchange = (e) => dataModel[path] = e.target.value;
-                }
-                
-                wrapper.appendChild(select);
-                return wrapper;
-            }
-            
-            if (comp.CheckBox) {
-                const cbObj = comp.CheckBox;
-                const label = document.createElement('label');
-                label.className = 'a2ui-checkbox';
-                
-                const input = document.createElement('input');
-                input.type = 'checkbox';
-                if (cbObj.value && cbObj.value.path) {
-                    input.checked = !!dataModel[cbObj.value.path];
-                    input.onchange = (e) => dataModel[cbObj.value.path] = e.target.checked;
-                }
-                label.appendChild(input);
-                
-                const span = document.createElement('span');
-                span.innerText = cbObj.label && cbObj.label.literalString ? cbObj.label.literalString : '';
-                label.appendChild(span);
-                
-                return label;
-            }
-            
-            if (comp.Slider) {
-                const sliderObj = comp.Slider;
-                const wrapper = document.createElement('div');
-                wrapper.className = 'a2ui-slider';
-                
-                if (sliderObj.label && sliderObj.label.literalString) {
-                    const label = document.createElement('label');
-                    label.innerText = sliderObj.label.literalString;
-                    wrapper.appendChild(label);
-                }
-                
-                const input = document.createElement('input');
-                input.type = 'range';
-                input.min = sliderObj.minValue !== undefined ? sliderObj.minValue : (sliderObj.min !== undefined ? sliderObj.min : 0);
-                input.max = sliderObj.maxValue !== undefined ? sliderObj.maxValue : (sliderObj.max !== undefined ? sliderObj.max : 100);
-                
-                const valSpan = document.createElement('span');
-                valSpan.className = 'slider-value';
-                
-                if (sliderObj.value && sliderObj.value.path) {
-                    input.value = dataModel[sliderObj.value.path] || input.min;
-                    valSpan.innerText = input.value;
-                    input.oninput = (e) => {
-                        dataModel[sliderObj.value.path] = e.target.value;
-                        valSpan.innerText = e.target.value;
-                    };
-                }
-                
-                wrapper.appendChild(input);
-                wrapper.appendChild(valSpan);
-                return wrapper;
-            }
-            
-            if (comp.Image) {
-                const imgObj = comp.Image;
-                const img = document.createElement('img');
-                img.className = 'a2ui-image';
-                if (imgObj.usageHint) {
-                    img.classList.add(imgObj.usageHint);
-                }
-                if (imgObj.url && imgObj.url.literalString) {
-                    img.src = imgObj.url.literalString;
-                } else if (imgObj.url && imgObj.url.path) {
-                    img.src = dataModel[imgObj.url.path] || '';
-                }
-                return img;
-            }
-            
-            if (comp.WebFrameSrcdoc) {
-                const wfObj = comp.WebFrameSrcdoc;
-                const props = wfObj.props || wfObj;
-                const iframe = document.createElement('iframe');
-                iframe.className = 'a2ui-iframe';
-                
-                let rawSrcdoc = "";
-                if (props.srcdoc) {
-                    rawSrcdoc = typeof props.srcdoc === 'object' ? (props.srcdoc.literalString || props.srcdoc.text || "") : props.srcdoc;
-                } else if (props.srcDoc) {
-                    rawSrcdoc = typeof props.srcDoc === 'object' ? (props.srcDoc.literalString || props.srcDoc.text || "") : props.srcDoc;
-                }
-                
-                logDiag(`WebFrameSrcdoc srcdoc length: ${rawSrcdoc.length}`);
-                iframe.srcdoc = rawSrcdoc;
-                iframe.sandbox = "allow-scripts allow-same-origin";
-                iframe.style.width = "100%";
-                iframe.style.border = "1px solid #334155";
-                iframe.style.borderRadius = "6px";
-                iframe.style.background = "#0f172a";
-                iframe.style.height = (typeof props.height === 'number' ? props.height : (parseInt(props.height) || 240)) + 'px';
-                return iframe;
-            }
-            
-            if (comp.WebFrameUrl) {
-                const wfObj = comp.WebFrameUrl;
-                const iframe = document.createElement('iframe');
-                iframe.className = 'a2ui-iframe';
-                if (wfObj.url && wfObj.url.literalString) {
-                    iframe.src = wfObj.url.literalString;
-                }
-                iframe.sandbox = "allow-scripts allow-same-origin";
-                iframe.style.height = typeof wfObj.height === 'number' ? wfObj.height + 'px' : (wfObj.height || '200px');
-                return iframe;
-            }
-            
-            if (comp.Chart) {
-                const chartObj = comp.Chart;
-                const props = chartObj.props || chartObj;
-                const chartType = (props.type || 'bar').toLowerCase();
-                const titleStr = props.title ? getTextString(props.title) : 'Analytics Chart';
-                
-                let items = [];
-                if (props.chartData) {
-                    if (Array.isArray(props.chartData)) {
-                        items = props.chartData;
-                    } else if (props.chartData.literalArray && Array.isArray(props.chartData.literalArray)) {
-                        items = props.chartData.literalArray;
-                    } else if (props.chartData.path && dataModel[props.chartData.path]) {
-                        items = dataModel[props.chartData.path];
-                    }
-                }
-                
-                const card = document.createElement('div');
-                card.className = 'a2ui-card a2ui-chart-card';
-                card.style.background = '#0f172a';
-                card.style.border = '1px solid #334155';
-                card.style.borderRadius = '10px';
-                card.style.padding = '16px';
-                card.style.margin = '12px 0';
-
-                const titleEl = document.createElement('h3');
-                titleEl.className = 'a2ui-h3';
-                titleEl.style.color = '#f59e0b';
-                titleEl.style.marginBottom = '12px';
-                titleEl.innerText = titleStr;
-                card.appendChild(titleEl);
-
-                const chartSvgContainer = document.createElement('div');
-                chartSvgContainer.className = 'a2ui-chart-svg';
-                
-                if (chartType === 'pie' || chartType === 'doughnut') {
-                    const isDonut = chartType === 'doughnut';
-                    chartSvgContainer.innerHTML = renderClientSvgPie(items, isDonut);
-                } else {
-                    chartSvgContainer.innerHTML = renderClientSvgBar(items);
-                }
-                
-                card.appendChild(chartSvgContainer);
-                return card;
-            }
-            
-            if (comp.DateTimeInput) {
-                const dtObj = comp.DateTimeInput;
-                const wrapper = document.createElement('div');
-                wrapper.className = 'a2ui-textfield';
-                
-                if (dtObj.label && dtObj.label.literalString) {
-                    const label = document.createElement('label');
-                    label.innerText = dtObj.label.literalString;
-                    wrapper.appendChild(label);
-                }
-                
-                const input = document.createElement('input');
-                if (dtObj.enableDate && dtObj.enableTime) {
-                    input.type = 'datetime-local';
-                } else if (dtObj.enableTime) {
-                    input.type = 'time';
-                } else {
-                    input.type = 'date';
-                }
-                
-                if (dtObj.value && dtObj.value.path) {
-                    input.value = dataModel[dtObj.value.path] || '';
-                    input.onchange = (e) => dataModel[dtObj.value.path] = e.target.value;
-                }
-                
-                wrapper.appendChild(input);
-                return wrapper;
-            }
-            
-            if (comp.Icon) {
-                const iconObj = comp.Icon;
-                const span = document.createElement('span');
-                span.className = 'a2ui-icon';
-                span.innerText = iconObj.name || iconObj.literalString || '';
-                return span;
-            }
-            
-            if (comp.Tabs) {
-                const tabsObj = comp.Tabs;
-                const wrapper = document.createElement('div');
-                
-                const header = document.createElement('div');
-                header.className = 'a2ui-tabs-header';
-                wrapper.appendChild(header);
-                
-                const contentArea = document.createElement('div');
-                wrapper.appendChild(contentArea);
-                
-                const tabs = tabsObj.tabs || [];
-                
-                const renderTab = (idx) => {
-                    contentArea.innerHTML = '';
-                    const tabBtn = header.children;
-                    for (let i = 0; i < tabBtn.length; i++) {
-                        tabBtn[i].classList.toggle('active', i === idx);
-                    }
-                    if (tabs[idx] && tabs[idx].child) {
-                        const childNode = buildComponentNode(tabs[idx].child, components);
-                        if (childNode) contentArea.appendChild(childNode);
-                    }
-                };
-                
-                tabs.forEach((tab, idx) => {
-                    const btn = document.createElement('button');
-                    btn.className = 'a2ui-tab-btn';
-                    btn.innerText = tab.title || `Tab ${idx + 1}`;
-                    btn.onclick = () => renderTab(idx);
-                    header.appendChild(btn);
-                });
-                
-                if (tabs.length > 0) {
-                    renderTab(0);
-                }
-                
-                return wrapper;
-            }
-            
-            return null;
-        }
-    </script>
+  sendUserAction(userAction, msgText);
+}
+</script>
 </body>
 </html>

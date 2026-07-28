@@ -11,6 +11,7 @@ os.environ["DISABLE_OTEL_TRACING"] = "true"
 # Mock google.cloud.logging.Client to prevent GCP API calls in unit tests
 try:
     from unittest.mock import MagicMock
+
     import google.cloud.logging
 
     google.cloud.logging.Client = MagicMock()

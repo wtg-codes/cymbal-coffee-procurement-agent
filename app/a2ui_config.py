@@ -286,7 +286,7 @@ def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
                 if "beginRendering" in msg:
                     begin_idx = i
                     break
-            
+
             if begin_idx > 0:
                 msg = messages.pop(begin_idx)
                 messages.insert(0, msg)
