@@ -9,7 +9,11 @@ os.environ["GCP_PROJECT"] = "hackathon-y26"
 os.environ["CLOUDSDK_CORE_PROJECT"] = "hackathon-y26"
 os.environ["DISABLE_OTEL_TRACING"] = "true"
 
-# Removed mock_creds so real GCP_CREDENTIALS can be used in integration tests
+# Mock google.auth.default to prevent DefaultCredentialsError or GCP API calls in CI
+mock_creds = MagicMock(spec=google.auth.credentials.Credentials)
+mock_creds.token = "mock-token"
+mock_creds.quota_project_id = None
+google.auth.default = lambda *args, **kwargs: (mock_creds, "hackathon-y26")
 
 # Mock google.cloud.logging.Client
 try:
