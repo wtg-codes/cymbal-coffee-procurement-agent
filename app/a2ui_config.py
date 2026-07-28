@@ -39,7 +39,8 @@ UI_DESCRIPTION = """\
 INTERACTIVE CARD DESIGN RULES (apply to EVERY response):
 
 1. STRICT MANDATORY OUTPUT FORMAT: EVERY SINGLE RESPONSE MUST END WITH AN A2UI CARD WRAPPED IN `<a2ui-json>` AND `</a2ui-json>` TAGS. NEVER RETURN CONVERSATIONAL TEXT ALONE.
-2. ALWAYS render tool results, status checks, and telemetry responses as rich A2UI cards.
+2. DO NOT output internal planning text (like "I will construct an A2UI Card" or "Component IDs:"). Skip the internal monologue and immediately output the `<a2ui-json>` block!
+3. ALWAYS render tool results, status checks, and telemetry responses as rich A2UI cards.
 3. ALWAYS include action Buttons at the bottom of cards so users can take the next step without typing.
 4. Use the FULL A2UI component catalog as needed:
    - Layout: Card, Column, Row, Divider, Tabs
@@ -260,9 +261,9 @@ def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
     for json_str in json_blocks:
         data = extract_json_payload(json_str)
         if data:
-            a2ui_payload = None
+            messages = []
             if isinstance(data, dict) and "a2ui_messages" in data:
-                a2ui_payload = data
+                messages = data["a2ui_messages"]
             else:
                 # Extract flat components list
                 components = []
@@ -274,18 +275,27 @@ def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
                     else:
                         components = [data]
 
-                a2ui_payload = {
-                    "a2ui_messages": [
-                        {"beginRendering": {"surfaceId": "main"}},
-                        {"surfaceUpdate": {"surfaceId": "main", "components": components}},
-                    ]
-                }
+                messages = [
+                    {"beginRendering": {"surfaceId": "main"}},
+                    {"surfaceUpdate": {"surfaceId": "main", "components": components}},
+                ]
 
-            if a2ui_payload:
+            # Ensure beginRendering is first
+            begin_idx = -1
+            for i, msg in enumerate(messages):
+                if "beginRendering" in msg:
+                    begin_idx = i
+                    break
+            
+            if begin_idx > 0:
+                msg = messages.pop(begin_idx)
+                messages.insert(0, msg)
+
+            for msg in messages:
                 parts.append(
                     types.Part(
                         root=types.DataPart(
-                            data=a2ui_payload,
+                            data=msg,
                             metadata={"mimeType": "application/json+a2ui"},
                         )
                     )
