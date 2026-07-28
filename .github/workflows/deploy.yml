@@ -4,6 +4,16 @@ on:
   push:
     branches: [ main ]
 
+env:
+  PROJECT_ID: hackathon-y26
+  PROJECT_NUMBER: '922201496337'
+  REGION: us-central1
+  SERVICE: cymbal-coffee-procurement-dashboard
+  APP_URL: https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app
+  GE_APP_ID: cymbal-coffee-roasters-dem_1785169638752
+  GE_AGENT_ID: '12977200261735696190'
+  GE_LOCATION: global
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -12,28 +22,75 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v4
+
       - uses: google-github-actions/auth@v2
-        with: { credentials_json: '${{ secrets.GCP_CREDENTIALS }}' }
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
+
       - uses: google-github-actions/setup-gcloud@v2
+
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy cymbal-coffee-procurement-dashboard \
+          gcloud run deploy ${{ env.SERVICE }} \
             --source . \
-            --region us-central1 \
-            --project hackathon-y26 \
-            --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,APP_URL=https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app \
+            --region ${{ env.REGION }} \
+            --project ${{ env.PROJECT_ID }} \
+            --set-env-vars GOOGLE_CLOUD_PROJECT=${{ env.PROJECT_ID }},GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,APP_URL=${{ env.APP_URL }} \
             --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest \
             --allow-unauthenticated
-      - uses: astral-sh/setup-uv@v5
-        with: { enable-cache: true }
-      - name: Register Agent in Gemini Enterprise
+
+      - name: Wait for Cloud Run to be healthy
         run: |
-          uvx --from google-agents-cli agents-cli publish gemini-enterprise \
-            --registration-type a2a \
-            --agent-card-url "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/a2a/app/.well-known/agent-card.json" \
-            --gemini-enterprise-app-id "projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752" \
-            --display-name "cymbal_coffee_procurement_agent" \
-            --description "Automated coffee procurement and telemetry agent for Cymbal Coffee Roasters"
+          sleep 15
+          curl --retry 5 --retry-delay 5 --retry-connrefused -sf \
+            "${{ env.APP_URL }}/health" | jq .
+
+      - name: Fetch live agent card and register in Gemini Enterprise
+        run: |
+          # Fetch the live agent card from the deployed Cloud Run service
+          AGENT_CARD=$(curl -sf "${{ env.APP_URL }}/a2a/app/.well-known/agent-card.json")
+          echo "Agent card fetched:"
+          echo "$AGENT_CARD" | jq .
+
+          # Ensure the url field in the card points to the A2A RPC path (not agent-card path)
+          AGENT_CARD=$(echo "$AGENT_CARD" | jq --arg url "${{ env.APP_URL }}/a2a/app" '.url = $url')
+
+          # Serialize to an escaped JSON string for the jsonAgentCard field
+          JSON_AGENT_CARD=$(echo "$AGENT_CARD" | jq -c . | jq -Rs .)
+
+          # Get access token
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+
+          # PATCH the existing GE agent registration with the updated agent card
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X PATCH \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-User-Project: ${{ env.PROJECT_NUMBER }}" \
+            "https://discoveryengine.googleapis.com/v1alpha/projects/${{ env.PROJECT_NUMBER }}/locations/${{ env.GE_LOCATION }}/collections/default_collection/engines/${{ env.GE_APP_ID }}/assistants/default_assistant/agents/${{ env.GE_AGENT_ID }}?updateMask=displayName,description,a2aAgentDefinition" \
+            -d "{
+              \"displayName\": \"Cymbal Coffee Procurement Agent\",
+              \"description\": \"Intelligent procurement and inventory agent for Cymbal Coffee Roasters. Monitors real-time IoT telemetry, detects stockouts, creates purchase orders, and renders interactive A2UI cards.\",
+              \"a2aAgentDefinition\": {
+                \"jsonAgentCard\": $JSON_AGENT_CARD
+              }
+            }")
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+          echo "GE Registration response ($HTTP_CODE):"
+          echo "$BODY" | jq . 2>/dev/null || echo "$BODY"
+
+          if [ "$HTTP_CODE" -ge 400 ]; then
+            echo "ERROR: GE registration failed with HTTP $HTTP_CODE"
+            exit 1
+          fi
+
       - name: Ensure ALL_USERS Sharing Scope
         run: |
-          curl -s -X PATCH -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -H "X-Goog-User-Project: 922201496337" "https://discoveryengine.googleapis.com/v1alpha/projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752/assistants/default_assistant/agents/12977200261735696190?updateMask=sharingConfig" -d '{"sharingConfig": {"scope": "ALL_USERS"}}'
+          ACCESS_TOKEN=$(gcloud auth print-access-token)
+          curl -s -X PATCH \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-User-Project: ${{ env.PROJECT_NUMBER }}" \
+            "https://discoveryengine.googleapis.com/v1alpha/projects/${{ env.PROJECT_NUMBER }}/locations/${{ env.GE_LOCATION }}/collections/default_collection/engines/${{ env.GE_APP_ID }}/assistants/default_assistant/agents/${{ env.GE_AGENT_ID }}?updateMask=sharingConfig" \
+            -d '{"sharingConfig": {"scope": "ALL_USERS"}}' | jq .

@@ -1,5 +1,4 @@
 import os
-from unittest.mock import MagicMock
 
 import google.auth
 import google.auth.credentials
@@ -9,14 +8,9 @@ os.environ["GCP_PROJECT"] = "hackathon-y26"
 os.environ["CLOUDSDK_CORE_PROJECT"] = "hackathon-y26"
 os.environ["DISABLE_OTEL_TRACING"] = "true"
 
-# Mock google.auth.default to prevent DefaultCredentialsError or GCP API calls in CI
-mock_creds = MagicMock(spec=google.auth.credentials.Credentials)
-mock_creds.token = "mock-token"
-mock_creds.quota_project_id = None
-google.auth.default = lambda *args, **kwargs: (mock_creds, "hackathon-y26")
-
-# Mock google.cloud.logging.Client
+# Mock google.cloud.logging.Client to prevent GCP API calls in unit tests
 try:
+    from unittest.mock import MagicMock
     import google.cloud.logging
 
     google.cloud.logging.Client = MagicMock()

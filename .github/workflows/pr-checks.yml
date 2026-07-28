@@ -22,6 +22,6 @@ jobs:
       - run: uv sync --all-groups
       - run: uv run ruff check .
       - uses: google-github-actions/auth@v2
-        if: ${{ secrets.GCP_CREDENTIALS != '' }}
-        with: { credentials_json: '${{ secrets.GCP_CREDENTIALS }}' }
+        with:
+          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
       - run: touch .env && uv run pytest --cov=app --cov-fail-under=80

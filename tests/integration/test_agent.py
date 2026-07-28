@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import os
+
+import pytest
 from google.adk.agents.run_config import RunConfig, StreamingMode
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -20,10 +23,28 @@ from google.genai import types
 from app.agent import root_agent
 
 
+def _has_real_credentials() -> bool:
+    """Returns True if real GCP credentials are available (ADC or service account)."""
+    try:
+        import google.auth
+
+        credentials, _ = google.auth.default()
+        # MagicMock credentials do not have a universe_domain attribute
+        return hasattr(credentials, "universe_domain") or hasattr(
+            credentials, "service_account_email"
+        )
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(
+    not _has_real_credentials(),
+    reason="Integration test requires real GCP credentials (ADC or GCP_CREDENTIALS secret)",
+)
 def test_agent_stream() -> None:
     """
     Integration test for the agent stream functionality.
-    Tests that the agent returns valid streaming responses.
+    Tests that the agent returns valid streaming responses against the real Vertex AI API.
     """
 
     session_service = InMemorySessionService()
@@ -43,7 +64,7 @@ def test_agent_stream() -> None:
             run_config=RunConfig(streaming_mode=StreamingMode.SSE),
         )
     )
-    assert len(events) > 0, "Expected at least one message"
+    assert len(events) > 0, "Expected at least one event from the agent"
 
     has_text_content = False
     for event in events:
