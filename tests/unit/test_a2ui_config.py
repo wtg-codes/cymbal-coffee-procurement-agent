@@ -40,12 +40,12 @@ def test_extract_json_payload_variations():
 
 def test_format_a2ui_parts_v09_tag():
     """Responses with <a2ui-json> tag should parse into Text and Data parts."""
-    text = "Here is the card:\n<a2ui-json>\n[{\"id\": \"card_1\", \"type\": \"Card\"}]\n</a2ui-json>"
+    text = 'Here is the card:\n<a2ui-json>\n[{"id": "card_1", "type": "Card"}]\n</a2ui-json>'
     parts = format_a2ui_parts(text)
     assert len(parts) == 2
     assert parts[0].root.text == "Here is the card:"
     assert parts[1].root.metadata["mimeType"] == "application/json+a2ui"
-    assert parts[1].root.data == {"id": "card_1", "type": "Card"}
+    assert "a2ui_messages" in parts[1].root.data
 
 
 def test_format_a2ui_parts_delimiter_valid_json():

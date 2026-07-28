@@ -242,19 +242,58 @@ def format_a2ui_parts(final_response_content: str):
     if json_string and json_string.strip():
         data = extract_json_payload(json_string)
         if data:
-            messages = []
-            if isinstance(data, dict) and "a2ui_messages" in data:
-                messages = data["a2ui_messages"]
-            elif isinstance(data, list):
-                messages = data
+            a2ui_payload = None
+            if isinstance(data, dict) and (
+                "a2ui_messages" in data
+                or "surfaceUpdate" in data
+                or "beginRendering" in data
+            ):
+                a2ui_payload = data
+            elif isinstance(data, list) and len(data) > 0:
+                first_comp = data[0] if isinstance(data[0], dict) else {}
+                root_id = first_comp.get("id", "root")
+                a2ui_payload = {
+                    "a2ui_messages": [
+                        {
+                            "beginRendering": {
+                                "surfaceId": "main",
+                                "root": root_id,
+                            }
+                        },
+                        {
+                            "surfaceUpdate": {
+                                "surfaceId": "main",
+                                "components": data,
+                            }
+                        },
+                    ]
+                }
+            elif isinstance(data, dict) and "id" in data:
+                root_id = data.get("id", "root")
+                a2ui_payload = {
+                    "a2ui_messages": [
+                        {
+                            "beginRendering": {
+                                "surfaceId": "main",
+                                "root": root_id,
+                            }
+                        },
+                        {
+                            "surfaceUpdate": {
+                                "surfaceId": "main",
+                                "components": [data],
+                            }
+                        },
+                    ]
+                }
             elif isinstance(data, dict):
-                messages = [data]
+                a2ui_payload = data
 
-            for msg in messages:
+            if a2ui_payload:
                 parts.append(
                     types.Part(
                         root=types.DataPart(
-                            data=msg,
+                            data=a2ui_payload,
                             metadata={"mimeType": "application/json+a2ui"},
                         )
                     )
