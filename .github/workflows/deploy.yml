@@ -33,15 +33,14 @@ jobs:
             --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,APP_URL=https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app \
             --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest
 
-      - name: Install uv & google-agents-cli
+      - name: Install uv
         uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
 
       - name: Register / Synchronize Agent in Gemini Enterprise
         run: |
-          uv tool install google-agents-cli
-          uvx agents-cli publish gemini-enterprise \
+          uvx --from google-agents-cli agents-cli publish gemini-enterprise \
             --agent-card-url "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/a2a/app/.well-known/agent-card.json" \
             --gemini-enterprise-app-id "projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752" \
             --display-name "cymbal_coffee_procurement_agent" \
