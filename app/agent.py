@@ -192,10 +192,24 @@ def a2ui_callback(
 
         new_parts = [_wrap_a2ui_part(_strip_non_latin1(msg)) for msg in a2ui_messages]
 
-        # Preserve clean text summary before <a2ui-json> tag so users see context
-        summary_text = text.split("<a2ui-json>")[0].strip()
+        # Preserve clean text summary before the A2UI JSON payload
+        a2ui_match = re.search(r"<a2ui-json>(.*?)</a2ui-json>", text, re.DOTALL)
+        if a2ui_match:
+            summary_text = text.split("<a2ui-json>")[0].strip()
+        else:
+            json_start = next(
+                (i for i, ch in enumerate(text) if ch in ("[", "{")), None
+            )
+            if json_start is not None:
+                summary_text = text[:json_start].strip()
+            else:
+                summary_text = text.strip()
+
         summary_text = re.sub(r"</?a2a_datapart_json>", "", summary_text)
-        summary_text = re.sub(r"```(?:json)?.*", "", summary_text, flags=re.DOTALL).strip()
+        summary_text = re.sub(r"```(?:json)?.*", "", summary_text, flags=re.DOTALL)
+        summary_text = re.sub(r"\{\s*\"(?:kind|metadata|data|beginRendering|surfaceUpdate|id)\".*", "", summary_text, flags=re.DOTALL)
+        summary_text = re.sub(r"\[\s*\{\s*\"(?:kind|metadata|data|beginRendering|surfaceUpdate|id)\".*", "", summary_text, flags=re.DOTALL).strip()
+
         if not summary_text:
             summary_text = "\u200b"  # zero-width space fallback
         text_part = types.Part(text=summary_text)
