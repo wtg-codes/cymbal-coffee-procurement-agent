@@ -16,7 +16,6 @@ from app.tools import (
     notify_store_manager,
     send_customer_notification,
     simulate_sensor_event,
-    trigger_event,
 )
 
 
@@ -37,7 +36,6 @@ root_agent = Agent(
         create_purchase_order,
         send_customer_notification,
         notify_store_manager,
-        trigger_event,
     ],
 )
 

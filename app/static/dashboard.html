@@ -622,58 +622,42 @@
             <div>
                 <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: linear-gradient(135deg, rgba(22, 28, 45, 0.9), rgba(245, 158, 11, 0.08));">
                     <div class="card-title">
-                        <span>🚀 Synthetic Demo Simulation</span>
-                        <span id="simStatusTag" class="bin-status-tag tag-optimal">STANDBY</span>
+                        <span>📡 Live Order Stream</span>
+                        <span id="simStatusTag" class="bin-status-tag tag-warning">LIVE</span>
                     </div>
-                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                        Activate the synthetic IoT telemetry backend for live demonstrations (auto-timeout in 2 hours max):
-                    </p>
-
-                    <div id="simTimerDisplay" style="display: none; background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 10px; margin-bottom: 1rem; text-align: center;">
-                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Remaining Session Time (Max 2h)</div>
-                        <div id="countdownTimer" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-amber);">02:00:00</div>
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 0.8rem;">
+                        <span id="orderCountBadge" class="bin-status-tag tag-optimal" style="font-size:0.75rem;">0 orders</span>
+                        <span style="font-size: 0.72rem; color: var(--text-muted);">Session uptime: <span id="uptimeDisplay" style="color: var(--accent-amber); font-family: 'JetBrains Mono', monospace;">00:00</span></span>
                     </div>
-
-                    <button id="btnStartSim" class="btn-action" style="font-size: 0.95rem; padding: 0.8rem;" onclick="startSimulation()">
-                        ▶️ Start 2-Hour Demo Session
-                    </button>
-
-                    <button id="btnStopSim" class="btn-action btn-danger" style="display: none; font-size: 0.85rem; margin-top: 0.5rem;" onclick="stopSimulation()">
-                        ⏹️ Stop Demo Session
-                    </button>
-                </div>
-
-                <!-- Dynamic Morning Rush Stream Log Card -->
-                <div id="orderLogCard" class="card" style="display: none;">
-                    <div class="card-title">
-                        <span>☕ Morning Order Stream (6:30 AM Rush)</span>
-                        <span id="orderCountBadge" class="bin-status-tag tag-optimal">0 orders</span>
-                    </div>
-                    <div id="orderLogList" style="max-height: 180px; overflow-y: auto; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 0.3rem;">
-                        <!-- Dynamically populated -->
+                    <div id="orderLogList" style="max-height: 200px; overflow-y: auto; font-size: 0.78rem; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 0.35rem; padding-right: 0.3rem;">
+                        <div style="color: var(--text-muted); font-style: italic;">Waiting for orders…</div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div class="card-title">⚡ Instant Sensor Event Injector</div>
+                    <div class="card-title">⚡ Demo Event Scenarios</div>
                     <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                        Simulate real-world stock depletion or hardware anomalies to trigger agent workflows:
+                        Trigger real-world scenarios to drive agent conversations:
                     </p>
 
                     <button class="btn-action btn-danger" onclick="simulateEvent('downtown-flagship', 'dark-roast-beans', 12.0)">
-                        🚨 Trigger Critical Bean Stock (12% SF)
+                        🚨 Critical Bean Stock — Downtown (12%)
                     </button>
 
-                    <button class="btn-action btn-danger" onclick="simulateEvent('airport-express', 'dark-roast-beans', 8.0)">
-                        🚨 Trigger Stockout Warning (8% SFO)
+                    <button class="btn-action btn-danger" onclick="simulateEvent('airport-express', 'dark-roast-beans', 8.0)" style="margin-top:0.5rem;">
+                        🚨 Near Stockout — Airport SFO (8%)
                     </button>
 
-                    <button class="btn-action" onclick="simulateEvent('downtown-flagship', 'oat-milk', 15.0)">
-                        🥛 Low Oat Milk Telemetry (15% SF)
+                    <button class="btn-action" onclick="simulateEvent('downtown-flagship', 'oat-milk', 15.0)" style="margin-top:0.5rem;">
+                        🥛 Low Oat Milk — Downtown (15%)
                     </button>
 
                     <button class="btn-action btn-secondary" onclick="createDemoPO()" style="margin-top: 1rem;">
-                        📝 Manually Generate Test PO
+                        📝 Generate Test Purchase Order
+                    </button>
+
+                    <button class="btn-action btn-secondary" onclick="resetTelemetry()" style="margin-top:0.5rem; opacity:0.7;">
+                        🔄 Reset All Sensor Levels
                     </button>
                 </div>
 
@@ -853,62 +837,56 @@
 
         function updateSimUI(sim) {
             const statusTag = document.getElementById('simStatusTag');
-            const timerDisplay = document.getElementById('simTimerDisplay');
-            const btnStart = document.getElementById('btnStartSim');
-            const btnStop = document.getElementById('btnStopSim');
-            const timerVal = document.getElementById('countdownTimer');
-            const orderLogCard = document.getElementById('orderLogCard');
             const orderLogList = document.getElementById('orderLogList');
             const orderCountBadge = document.getElementById('orderCountBadge');
+            const uptimeDisplay = document.getElementById('uptimeDisplay');
 
-            if (sim && sim.is_active) {
-                statusTag.className = 'bin-status-tag tag-warning';
-                statusTag.innerText = 'DEMO ACTIVE';
-                timerDisplay.style.display = 'block';
-                btnStart.style.display = 'none';
-                btnStop.style.display = 'flex';
-                orderLogCard.style.display = 'block';
+            // Simulation is always on — always show LIVE
+            statusTag.className = 'bin-status-tag tag-warning';
+            statusTag.innerText = 'LIVE';
 
+            // Uptime display
+            if (sim && sim.uptime_seconds !== undefined) {
+                const u = sim.uptime_seconds || 0;
+                const hh = String(Math.floor(u / 3600)).padStart(2, '0');
+                const mm = String(Math.floor((u % 3600) / 60)).padStart(2, '0');
+                const ss = String(u % 60).padStart(2, '0');
+                if (uptimeDisplay) uptimeDisplay.innerText = `${hh}:${mm}:${ss}`;
+            } else if (sim && sim.remaining_seconds !== undefined) {
+                // Fallback for old API
                 const sec = sim.remaining_seconds;
-                const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-                const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-                const s = String(sec % 60).padStart(2, '0');
-                timerVal.innerText = `${h}:${m}:${s}`;
+                const hh = String(Math.floor(sec / 3600)).padStart(2, '0');
+                const mm = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
+                const ss = String(sec % 60).padStart(2, '0');
+                if (uptimeDisplay) uptimeDisplay.innerText = `${hh}:${mm}:${ss}`;
+            }
 
-                if (sim.simulated_orders && sim.simulated_orders.length > 0) {
-                    orderCountBadge.innerText = `${sim.total_orders_processed || sim.simulated_orders.length * 18} orders`;
-                    orderLogList.innerHTML = sim.simulated_orders.map(o => `
+            // Order stream — show regardless of is_active
+            const orders = (sim && (sim.simulated_orders || [])).slice(0, 10);
+            const totalOrders = sim && (sim.total_orders_processed || 0);
+
+            if (orderCountBadge) {
+                orderCountBadge.innerText = totalOrders > 0 ? `${totalOrders} served` : '0 orders';
+            }
+
+            if (orderLogList) {
+                if (orders.length > 0) {
+                    orderLogList.innerHTML = orders.map(o => `
                         <div style="background: rgba(255,255,255,0.03); padding: 0.4rem 0.6rem; border-radius: 6px; display: flex; justify-content: space-between; border-left: 3px solid var(--accent-amber);">
                             <div>
-                                <span style="color: var(--accent-amber);">${o.time}</span> • <strong>${o.description}</strong>
+                                <span style="color: var(--accent-amber);">${o.time}</span>
+                                • <strong>${o.description}</strong>
+                                <span style="color: var(--text-muted); font-size:0.7rem;"> @ ${o.store_id}</span>
                             </div>
-                            <span style="color: var(--accent-rose);">${o.impact}</span>
+                            <span style="color: var(--accent-rose); white-space:nowrap;">${o.impact || ''}</span>
                         </div>
                     `).join('');
+                } else {
+                    orderLogList.innerHTML = '<div style="color: var(--text-muted); font-style: italic;">Simulation warming up…</div>';
                 }
-            } else {
-                statusTag.className = 'bin-status-tag tag-optimal';
-                statusTag.innerText = 'STANDBY';
-                timerDisplay.style.display = 'none';
-                btnStart.style.display = 'flex';
-                btnStop.style.display = 'none';
-                orderLogCard.style.display = 'none';
             }
         }
 
-        async function startSimulation() {
-            await fetch('/api/dashboard/simulation/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ duration_minutes: 120 })
-            });
-            fetchTelemetry();
-        }
-
-        async function stopSimulation() {
-            await fetch('/api/dashboard/simulation/stop', { method: 'POST' });
-            fetchTelemetry();
-        }
 
         function renderPOs(pos) {
             const tbody = document.getElementById('poTableBody');

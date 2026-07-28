@@ -51,6 +51,8 @@ except Exception:
     import google.auth.credentials
 
     mock_creds = MagicMock(spec=google.auth.credentials.Credentials)
+    mock_creds.token = "mock-token"
+    mock_creds.quota_project_id = None
     google.auth.default = lambda *args, **kwargs: (
         mock_creds,
         os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
@@ -99,6 +101,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         task_store=InMemoryTaskStore(),
         rpc_path=f"/a2a/{adk_app.name}",
     )
+
+    # Auto-start the simulation so the backend always has live data on boot
+    start_simulation(duration_minutes=120)
+
     yield
 
 

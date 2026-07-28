@@ -13,7 +13,6 @@ from app.tools.telemetry import (
     generate_telemetry_chart,
     get_bin_telemetry,
     simulate_sensor_event,
-    trigger_event,
 )
 
 __all__ = [
@@ -25,5 +24,4 @@ __all__ = [
     "notify_store_manager",
     "send_customer_notification",
     "simulate_sensor_event",
-    "trigger_event",
 ]

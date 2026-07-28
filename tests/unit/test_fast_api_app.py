@@ -50,12 +50,11 @@ def test_dashboard_api_endpoints():
         "/api/dashboard/simulation/start", json={"duration_minutes": 10}
     )
     assert res_start.status_code == 200
-    # start_simulation is now a shim for trigger_event("morning_rush")
-    assert res_start.json()["status"] == "EVENT_TRIGGERED"
+    assert res_start.json()["status"] == "SIMULATION_STARTED"
 
     res_stop = client.post("/api/dashboard/simulation/stop")
     assert res_stop.status_code == 200
-    assert res_stop.json()["status"] == "EVENT_TRIGGERED"
+    assert res_stop.json()["status"] == "SIMULATION_STOPPED"
 
     res_sim = client.post(
         "/api/dashboard/simulate",
