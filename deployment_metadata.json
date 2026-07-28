@@ -1,9 +1,9 @@
 {
   "remote_agent_runtime_id": "projects/922201496337/locations/us-central1/reasoningEngines/2691482968760778752",
-  "gemini_enterprise_agent_id": "12328095587137072378",
+  "gemini_enterprise_agent_id": "12546482106346170322",
   "deployment_target": "agent_runtime",
   "is_a2a": true,
   "has_a2ui": true,
   "agent_directory": "app",
-  "deployment_timestamp": "2026-07-28T00:05:35+00:00"
+  "deployment_timestamp": "2026-07-28T00:07:50+00:00"
 }
