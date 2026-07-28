@@ -108,8 +108,14 @@ a2ui_system_prompt = schema_manager.generate_system_prompt(
 
 
 def get_a2ui_extensions():
-    """Return A2UI extensions for the AgentCard capabilities."""
+    """Return A2UI extensions for the AgentCard capabilities supporting both v0.8 and v0.9."""
+    from a2a.types import AgentExtension
+
     return [
+        AgentExtension(
+            uri="https://a2ui.org/a2a-extension/a2ui/v0.8",
+            description="Provides agent driven UI using the A2UI v0.8 JSON format.",
+        ),
         get_a2ui_agent_extension(
             A2UI_VERSION,
             schema_manager.accepts_inline_catalogs,
@@ -290,6 +296,31 @@ def format_a2ui_parts(final_response_content: str):
                 a2ui_payload = data
 
             if a2ui_payload:
+                # 1. Emit individual A2UI message DataParts for v0.8 client renderer compatibility
+                if isinstance(a2ui_payload, dict) and "a2ui_messages" in a2ui_payload:
+                    for msg in a2ui_payload["a2ui_messages"]:
+                        parts.append(
+                            types.Part(
+                                root=types.DataPart(
+                                    data=msg,
+                                    metadata={"mimeType": "application/json+a2ui"},
+                                )
+                            )
+                        )
+                elif isinstance(a2ui_payload, dict) and (
+                    "surfaceUpdate" in a2ui_payload
+                    or "beginRendering" in a2ui_payload
+                ):
+                    parts.append(
+                        types.Part(
+                            root=types.DataPart(
+                                data=a2ui_payload,
+                                metadata={"mimeType": "application/json+a2ui"},
+                            )
+                        )
+                    )
+
+                # 2. Also emit unified a2ui_payload DataPart for v0.9 client renderer compatibility
                 parts.append(
                     types.Part(
                         root=types.DataPart(
