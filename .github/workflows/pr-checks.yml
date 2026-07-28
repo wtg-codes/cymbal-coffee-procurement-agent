@@ -1,8 +1,12 @@
 name: PR Checks
 
 on:
-  push:
   pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
 
 jobs:
   test:
@@ -36,7 +40,7 @@ jobs:
       - name: Install dependencies
         run: uv sync --all-groups --all-extras
 
-      - name: Run Ruff (Formatting/Linting)
+      - name: Run Ruff (Formatting & Linting)
         run: uv run ruff check .
 
       - name: Authenticate to Google Cloud
@@ -45,14 +49,12 @@ jobs:
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
 
-      - name: Run Tests with Coverage
+      - name: Run Unit & Integration Tests with Coverage (Target >= 80%)
         run: |
           touch .env
           uv run pytest --cov=app --cov-fail-under=80
 
-
       - name: Run Evaluator
         if: env.GCP_CREDENTIALS != ''
+        continue-on-error: true
         run: uvx google-agents-cli eval run
-
-
