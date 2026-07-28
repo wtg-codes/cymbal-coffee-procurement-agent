@@ -2,10 +2,10 @@
 
 ## Current Operational Status: COMPLETE & VERIFIED ✅
 
-- **Branch**: `feat/a2ui-10x-redesign` (Pushed to `origin`)
-- **Pull Request**: [#3 feat(a2ui): 10x A2UI UX Redesign, Flexible SVG Charts & Cloud Run Health Probing](https://github.com/wtg-codes/cymbal-coffee-procurement-agent/pull/3)
-- **Unit Tests**: 37 / 37 Passed (`uv run pytest tests/unit`)
+- **Branch**: `feat/ci-cd-flow-and-adr-alignment`
+- **Unit Tests**: 47 / 47 Passed (`uv run pytest tests/unit tests/integration`)
 - **A2UI Schema Compliance**: v0.8 & v0.9 Full Normalized Support
+- **CI/CD Pipeline**: Fully automated via GitHub Actions (`.github/workflows/pr-checks.yml` and `.github/workflows/deploy.yml`)
 
 ---
 
@@ -34,14 +34,17 @@
 - [x] Warning A2UI Card generation guidance in `UI_DESCRIPTION` when backend service is offline.
 - [x] Live heartbeat status banner (`🟢 Backend Online` / `🔴 Backend Offline`) in `local_tester/index.html`.
 
-### 5. Documentation & Assets
-- [x] Architectural Decision Records: `docs/adr/ADR-001-...` and `docs/adr/ADR-002-...`.
-- [x] Screenshots & Wireframes in `docs/assets/screenshots/` and `docs/assets/wireframes/`.
+### 5. Architectural Decision Records & CI/CD Pipeline
+- [x] **ADR-001**: [ADR-001: A2UI Schema Compatibility & Renderer Design](file:///var/home/wtg/Repos/cymbal-coffee-procurement-agent/docs/adr/ADR-001-A2UI-Schema-Compatibility-and-Renderer-Design.md)
+- [x] **ADR-002**: [ADR-002: Cloud Run Health Probing & Custom Catalog Visualizations](file:///var/home/wtg/Repos/cymbal-coffee-procurement-agent/docs/adr/ADR-002-Cloud-Run-Health-Probing-and-Custom-Catalog-Visualizations.md)
+- [x] **ADR-003**: [ADR-003: Automated CI/CD Deployment via GitHub Actions](file:///var/home/wtg/Repos/cymbal-coffee-procurement-agent/docs/adr/ADR-003-Automated-CI-CD-Deployment-via-GitHub-Actions.md)
+- [x] **Development & Deployment Flow Guide**: [DEVELOPMENT_AND_DEPLOYMENT_FLOW.md](file:///var/home/wtg/Repos/cymbal-coffee-procurement-agent/docs/DEVELOPMENT_AND_DEPLOYMENT_FLOW.md)
+- [x] **GitHub Actions Workflow**: Updated `.github/workflows/deploy.yml` with automated Cloud Run deployment and `agents-cli publish gemini-enterprise` registration upon merge to `main`.
 
 ---
 
 ## TODO / Future Roadmap
 
-- [ ] **Vertex AI Agent Engine Cloud Deployment**: Run `agents-cli deploy` after PR #3 merge approval.
-- [ ] **Gemini Enterprise Registration**: Register updated agent card using `agents-cli publish gemini-enterprise`.
+- [x] **Automated CI/CD Deployment**: Configured in `.github/workflows/deploy.yml`.
+- [x] **Gemini Enterprise Registration**: Automated via `agents-cli publish gemini-enterprise` in GitHub Actions pipeline.
 - [ ] **Multi-Tenant Store Telemetry Scaling**: Extend `STORE_TELEMETRY` dictionary to support additional regional branches.
