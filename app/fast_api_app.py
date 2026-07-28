@@ -19,9 +19,9 @@ from app.app_utils import services
 from app.app_utils.a2a import attach_a2a_routes
 from app.app_utils.telemetry import setup_telemetry
 from app.app_utils.typing import Feedback
-from app.tools.procurement import PURCHASE_ORDERS, create_purchase_order
+from app.database import get_all_stores_telemetry, get_purchase_orders
+from app.tools.procurement import create_purchase_order
 from app.tools.telemetry import (
-    STORE_TELEMETRY,
     get_simulation_status,
     simulate_sensor_event,
     start_simulation,
@@ -138,8 +138,8 @@ def get_dashboard() -> HTMLResponse:
 @app.get("/api/dashboard/data")
 def get_dashboard_data() -> dict:
     return {
-        "stores": STORE_TELEMETRY,
-        "purchase_orders": PURCHASE_ORDERS,
+        "stores": get_all_stores_telemetry(),
+        "purchase_orders": get_purchase_orders(),
         "simulation": get_simulation_status(),
     }
 
@@ -187,23 +187,10 @@ def api_create_po() -> dict:
 
 @app.post("/api/dashboard/reset")
 def api_reset_telemetry() -> dict:
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"][
-        "level_percent"
-    ] = 82.0
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"][
-        "current_weight_kg"
-    ] = 16.4
-    STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]["status"] = (
-        "OPTIMAL"
-    )
+    from app.database import update_sensor_level
 
-    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["level_percent"] = (
-        15.0
-    )
-    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"][
-        "current_weight_kg"
-    ] = 3.0
-    STORE_TELEMETRY["airport-express"]["bins"]["dark-roast-beans"]["status"] = "WARNING"
+    update_sensor_level("downtown-flagship", "dark-roast-beans", 82.0)
+    update_sensor_level("airport-express", "dark-roast-beans", 15.0)
     return {"status": "reset"}
 
 

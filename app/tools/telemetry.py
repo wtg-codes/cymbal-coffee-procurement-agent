@@ -4,85 +4,14 @@ import datetime
 import os
 import urllib.request
 from typing import Any
+from app.database import get_all_stores_telemetry, update_sensor_level
 
 CLOUD_RUN_DASHBOARD_URL = os.getenv(
     "CLOUD_RUN_DASHBOARD_URL",
     "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
 )
 
-STORE_TELEMETRY: dict[str, dict[str, Any]] = {
-    "downtown-flagship": {
-        "store_name": "Downtown Flagship (#101)",
-        "city": "San Francisco, CA",
-        "address": "100 Market St",
-        "bins": {
-            "dark-roast-beans": {
-                "item_name": "Organic Dark Roast Beans",
-                "bin_id": "BIN-SF101-01",
-                "level_percent": 82.0,
-                "current_weight_kg": 16.4,
-                "max_capacity_kg": 20.0,
-                "temp_celsius": 21.5,
-                "pressure_bar": 1.02,
-                "status": "OPTIMAL",
-                "hourly_consumption_kg": 1.2,
-            },
-            "espresso-blend": {
-                "item_name": "Signature Espresso Blend",
-                "bin_id": "BIN-SF101-02",
-                "level_percent": 65.0,
-                "current_weight_kg": 13.0,
-                "max_capacity_kg": 20.0,
-                "temp_celsius": 22.0,
-                "pressure_bar": 1.01,
-                "status": "OPTIMAL",
-                "hourly_consumption_kg": 1.8,
-            },
-            "oat-milk": {
-                "item_name": "Barista Edition Oat Milk",
-                "bin_id": "CONT-SF101-03",
-                "level_percent": 45.0,
-                "current_weight_kg": 9.0,
-                "max_capacity_kg": 20.0,
-                "temp_celsius": 3.8,
-                "pressure_bar": 1.05,
-                "status": "OPTIMAL",
-                "hourly_consumption_kg": 2.1,
-            },
-        },
-        "anomalies": [],
-    },
-    "airport-express": {
-        "store_name": "SFO Terminal 2 (#102)",
-        "city": "San Francisco, CA",
-        "address": "SFO Airport Gate 54",
-        "bins": {
-            "dark-roast-beans": {
-                "item_name": "Organic Dark Roast Beans",
-                "bin_id": "BIN-SF102-01",
-                "level_percent": 15.0,
-                "current_weight_kg": 3.0,
-                "max_capacity_kg": 20.0,
-                "temp_celsius": 21.8,
-                "pressure_bar": 0.98,
-                "status": "WARNING",
-                "hourly_consumption_kg": 2.5,
-            },
-            "espresso-blend": {
-                "item_name": "Signature Espresso Blend",
-                "bin_id": "BIN-SF102-02",
-                "level_percent": 90.0,
-                "current_weight_kg": 18.0,
-                "max_capacity_kg": 20.0,
-                "temp_celsius": 21.2,
-                "pressure_bar": 1.03,
-                "status": "OPTIMAL",
-                "hourly_consumption_kg": 3.0,
-            },
-        },
-        "anomalies": [],
-    },
-}
+STORE_TELEMETRY = get_all_stores_telemetry()
 
 
 SIMULATION_STATE: dict[str, Any] = {
@@ -132,47 +61,16 @@ def tick_simulation() -> None:
 
     # Gradual morning consumption curve per store
     # Downtown Flagship (#101) - Heavy morning rush
-    df_beans = STORE_TELEMETRY["downtown-flagship"]["bins"]["dark-roast-beans"]
-    df_espresso = STORE_TELEMETRY["downtown-flagship"]["bins"]["espresso-blend"]
-    df_milk = STORE_TELEMETRY["downtown-flagship"]["bins"]["oat-milk"]
-
-    # Calculate dynamic levels based on simulated minutes (starting from initial values)
-    # Peak rush depletion: ~0.35% per simulated minute
+    all_stores = get_all_stores_telemetry()
     depletion_amount = min(75.0, round(simulated_minutes * 0.35, 1))
 
     new_df_beans = max(8.0, round(82.0 - depletion_amount, 1))
     new_df_espresso = max(15.0, round(65.0 - (depletion_amount * 0.8), 1))
     new_df_milk = max(6.0, round(45.0 - (depletion_amount * 0.9), 1))
 
-    df_beans["level_percent"] = new_df_beans
-    df_beans["current_weight_kg"] = round(
-        (new_df_beans / 100.0) * df_beans["max_capacity_kg"], 1
-    )
-    df_beans["status"] = (
-        "CRITICAL"
-        if new_df_beans <= 15.0
-        else ("WARNING" if new_df_beans <= 25.0 else "OPTIMAL")
-    )
-
-    df_espresso["level_percent"] = new_df_espresso
-    df_espresso["current_weight_kg"] = round(
-        (new_df_espresso / 100.0) * df_espresso["max_capacity_kg"], 1
-    )
-    df_espresso["status"] = (
-        "CRITICAL"
-        if new_df_espresso <= 15.0
-        else ("WARNING" if new_df_espresso <= 25.0 else "OPTIMAL")
-    )
-
-    df_milk["level_percent"] = new_df_milk
-    df_milk["current_weight_kg"] = round(
-        (new_df_milk / 100.0) * df_milk["max_capacity_kg"], 1
-    )
-    df_milk["status"] = (
-        "CRITICAL"
-        if new_df_milk <= 15.0
-        else ("WARNING" if new_df_milk <= 25.0 else "OPTIMAL")
-    )
+    update_sensor_level("downtown-flagship", "dark-roast-beans", new_df_beans)
+    update_sensor_level("downtown-flagship", "espresso-blend", new_df_espresso)
+    update_sensor_level("downtown-flagship", "oat-milk", new_df_milk)
 
     # Generate synthetic order event log items
     orders = SIMULATION_STATE.get("simulated_orders", [])
@@ -318,32 +216,41 @@ def resolve_store_id(store_id: str) -> str | None:
     if not store_id:
         return "downtown-flagship"
     s = store_id.lower().strip()
-    if s in STORE_TELEMETRY:
+    all_stores = get_all_stores_telemetry()
+    if s in all_stores:
         return s
     if "downtown" in s or "101" in s or "flagship" in s:
         return "downtown-flagship"
     if "airport" in s or "sfo" in s or "102" in s or "express" in s:
         return "airport-express"
+    if "financial" in s or "california" in s or "103" in s:
+        return "financial-district"
+    if "mission" in s or "roastery" in s or "104" in s:
+        return "mission-roastery"
+    if "union" in s or "powell" in s or "105" in s:
+        return "union-square"
     return None
 
 
 def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
+    """Get real-time IoT bin telemetry from SQLite database across all 5 store locations."""
     check_simulation_timeout()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     backend_health = check_cloud_run_backend_health()
+    all_stores = get_all_stores_telemetry()
 
-    if store_id.lower() in ("all", "all-stores"):
+    if not store_id or store_id.lower() in ("all", "all-stores", "across all stores"):
         return {
             "mode": "ALL_LOCATIONS",
             "timestamp": timestamp,
-            "total_stores": len(STORE_TELEMETRY),
-            "stores": STORE_TELEMETRY,
+            "total_stores": len(all_stores),
+            "stores": all_stores,
             "simulation": get_simulation_status(),
             "cloud_run_backend": backend_health,
         }
 
     key = resolve_store_id(store_id)
-    store = STORE_TELEMETRY.get(key) if key else None
+    store = all_stores.get(key) if key else None
     if not store:
         return {"error": f"Store ID '{store_id}' not found.", "cloud_run_backend": backend_health}
 
@@ -362,32 +269,18 @@ def simulate_sensor_event(
     item_key: str = "dark-roast-beans",
     new_level_percent: float = 12.0,
 ) -> dict[str, Any]:
+    """Simulate an IoT sensor level change and persist in SQLite database."""
     key = resolve_store_id(store_id) or "downtown-flagship"
-    store = STORE_TELEMETRY.get(key)
-    if not store or item_key not in store["bins"]:
-        return {"error": f"Item '{item_key}' not found."}
-
-    target = store["bins"][item_key]
-    target["level_percent"] = new_level_percent
-    target["current_weight_kg"] = round(
-        (new_level_percent / 100.0) * target["max_capacity_kg"], 1
-    )
-    target["status"] = "CRITICAL" if new_level_percent <= 15.0 else "OPTIMAL"
-
-    return {
-        "event": "IOT_SENSOR_TELEMETRY_UPDATED",
-        "store_id": key,
-        "item_name": target["item_name"],
-        "new_level_percent": target["level_percent"],
-        "status": target["status"],
-    }
+    result = update_sensor_level(key, item_key, new_level_percent)
+    return result
 
 
 def detect_equipment_anomalies(store_id: str = "all") -> dict[str, Any]:
-    """Scan equipment health and detect anomalies for a specific store or all stores."""
+    """Scan equipment health and detect anomalies for a specific store or all 5 stores."""
+    all_stores = get_all_stores_telemetry()
     if not store_id or store_id.lower() in ("all", "all-stores", "across all stores"):
         results = {}
-        for s_key, s_data in STORE_TELEMETRY.items():
+        for s_key, s_data in all_stores.items():
             results[s_key] = {
                 "store_name": s_data["store_name"],
                 "health_status": "ALL_SYSTEMS_HEALTHY",
@@ -402,7 +295,7 @@ def detect_equipment_anomalies(store_id: str = "all") -> dict[str, Any]:
     key = resolve_store_id(store_id)
     if not key:
         return {"error": f"Store ID '{store_id}' not found."}
-    store = STORE_TELEMETRY.get(key)
+    store = all_stores.get(key)
     if not store:
         return {"error": f"Store ID '{store_id}' not found."}
     return {
