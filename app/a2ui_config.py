@@ -248,7 +248,7 @@ def extract_a2ui_json(content: str) -> tuple[str, list[str]]:
 def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
     """Format final text and extracted A2UI JSON into A2A Part objects.
 
-    Produces DataParts with mimeType 'application/json+a2ui'.
+    Produces TextPart and DataParts with mimeType 'application/json+a2ui'.
     """
     clean_text, json_blocks = extract_a2ui_json(final_response_content)
 
@@ -261,25 +261,25 @@ def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
         data = extract_json_payload(json_str)
         if data:
             a2ui_payload = None
-            if isinstance(data, list):
+            if isinstance(data, dict) and "a2ui_messages" in data:
+                a2ui_payload = data
+            else:
+                # Extract flat components list
+                components = []
+                if isinstance(data, list):
+                    components = data
+                elif isinstance(data, dict):
+                    if "components" in data and isinstance(data["components"], list):
+                        components = data["components"]
+                    else:
+                        components = [data]
+
                 a2ui_payload = {
                     "a2ui_messages": [
                         {"beginRendering": {"surfaceId": "main"}},
-                        {"surfaceUpdate": {"surfaceId": "main", "components": data}},
+                        {"surfaceUpdate": {"surfaceId": "main", "components": components}},
                     ]
                 }
-            elif isinstance(data, dict):
-                if "a2ui_messages" in data:
-                    a2ui_payload = data
-                elif "surfaceUpdate" in data or "beginRendering" in data:
-                    a2ui_payload = {"a2ui_messages": [data]}
-                else:
-                    a2ui_payload = {
-                        "a2ui_messages": [
-                            {"beginRendering": {"surfaceId": "main"}},
-                            {"surfaceUpdate": {"surfaceId": "main", "components": [data]}},
-                        ]
-                    }
 
             if a2ui_payload:
                 parts.append(

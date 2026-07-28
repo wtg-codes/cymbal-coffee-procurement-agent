@@ -15,6 +15,9 @@ STORES_SEED = [
         "city": "San Francisco, CA",
         "address": "100 Market St",
         "status": "OPTIMAL",
+        "store_manager": "Sarah Jenkins",
+        "monthly_budget_usd": 18500.0,
+        "month_to_date_spend_usd": 8420.50,
     },
     {
         "store_id": "airport-express",
@@ -22,6 +25,9 @@ STORES_SEED = [
         "city": "San Francisco, CA",
         "address": "SFO Airport Gate 54",
         "status": "WARNING",
+        "store_manager": "Alex Rivera",
+        "monthly_budget_usd": 22000.0,
+        "month_to_date_spend_usd": 12650.00,
     },
     {
         "store_id": "financial-district",
@@ -29,6 +35,9 @@ STORES_SEED = [
         "city": "San Francisco, CA",
         "address": "500 California St",
         "status": "OPTIMAL",
+        "store_manager": "Marcus Chen",
+        "monthly_budget_usd": 15000.0,
+        "month_to_date_spend_usd": 6890.00,
     },
     {
         "store_id": "mission-roastery",
@@ -36,6 +45,9 @@ STORES_SEED = [
         "city": "San Francisco, CA",
         "address": "2200 Mission St",
         "status": "OPTIMAL",
+        "store_manager": "Elena Rostova",
+        "monthly_budget_usd": 25000.0,
+        "month_to_date_spend_usd": 14120.00,
     },
     {
         "store_id": "union-square",
@@ -43,6 +55,9 @@ STORES_SEED = [
         "city": "San Francisco, CA",
         "address": "350 Powell St",
         "status": "OPTIMAL",
+        "store_manager": "David Vance",
+        "monthly_budget_usd": 17500.0,
+        "month_to_date_spend_usd": 7940.00,
     },
 ]
 
@@ -54,6 +69,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 20.0,
         "hourly_consumption_kg": 1.2,
         "base_temp": 21.5,
+        "unit_price_usd": 18.50,
+        "supplier_name": "Cymbal Artisan Roasters Direct",
     },
     {
         "item_key": "espresso-blend",
@@ -62,6 +79,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 20.0,
         "hourly_consumption_kg": 1.8,
         "base_temp": 22.0,
+        "unit_price_usd": 22.00,
+        "supplier_name": "Cymbal Artisan Roasters Direct",
     },
     {
         "item_key": "ethiopian-single-origin",
@@ -70,6 +89,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 15.0,
         "hourly_consumption_kg": 0.9,
         "base_temp": 21.0,
+        "unit_price_usd": 26.50,
+        "supplier_name": "Ethiopia Yirgacheffe Specialty Co.",
     },
     {
         "item_key": "colombian-medium-roast",
@@ -78,6 +99,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 20.0,
         "hourly_consumption_kg": 1.4,
         "base_temp": 21.8,
+        "unit_price_usd": 19.80,
+        "supplier_name": "Cymbal Artisan Roasters Direct",
     },
     {
         "item_key": "oat-milk",
@@ -86,6 +109,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 20.0,
         "hourly_consumption_kg": 2.1,
         "base_temp": 3.8,
+        "unit_price_usd": 3.20,
+        "supplier_name": "Oatly Commercial Supply",
     },
     {
         "item_key": "whole-milk",
@@ -94,6 +119,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 25.0,
         "hourly_consumption_kg": 2.5,
         "base_temp": 3.5,
+        "unit_price_usd": 2.80,
+        "supplier_name": "Clover Sonoma Dairy",
     },
     {
         "item_key": "almond-milk",
@@ -102,6 +129,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 15.0,
         "hourly_consumption_kg": 1.1,
         "base_temp": 3.9,
+        "unit_price_usd": 3.50,
+        "supplier_name": "Califia Farms Direct",
     },
     {
         "item_key": "cold-brew-concentrate",
@@ -110,6 +139,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 30.0,
         "hourly_consumption_kg": 1.9,
         "base_temp": 2.8,
+        "unit_price_usd": 14.50,
+        "supplier_name": "Cymbal Cold Craft Labs",
     },
     {
         "item_key": "vanilla-syrup",
@@ -118,6 +149,8 @@ PRODUCTS_SEED = [
         "max_capacity_kg": 10.0,
         "hourly_consumption_kg": 0.5,
         "base_temp": 20.0,
+        "unit_price_usd": 12.00,
+        "supplier_name": "Monin Gourmet Flavors",
     },
 ]
 
@@ -138,7 +171,10 @@ def init_db():
             store_name TEXT NOT NULL,
             city TEXT NOT NULL,
             address TEXT NOT NULL,
-            status TEXT NOT NULL
+            status TEXT NOT NULL,
+            store_manager TEXT,
+            monthly_budget_usd REAL,
+            month_to_date_spend_usd REAL
         )
         """)
 
@@ -156,6 +192,8 @@ def init_db():
             pressure_bar REAL NOT NULL,
             status TEXT NOT NULL,
             hourly_consumption_kg REAL NOT NULL,
+            unit_price_usd REAL DEFAULT 18.50,
+            supplier_name TEXT DEFAULT 'Cymbal Roasters Direct',
             PRIMARY KEY (store_id, item_key),
             FOREIGN KEY (store_id) REFERENCES stores(store_id)
         )
@@ -168,6 +206,11 @@ def init_db():
             supplier TEXT NOT NULL,
             item_name TEXT NOT NULL,
             quantity_kg REAL NOT NULL,
+            unit_price_usd REAL DEFAULT 18.50,
+            subtotal_usd REAL DEFAULT 0.0,
+            tax_usd REAL DEFAULT 0.0,
+            shipping_usd REAL DEFAULT 0.0,
+            total_cost_usd REAL DEFAULT 0.0,
             urgency TEXT NOT NULL,
             status TEXT NOT NULL,
             created_at TEXT NOT NULL,
@@ -192,13 +235,20 @@ def init_db():
         if cursor.fetchone()["cnt"] == 0:
             for store in STORES_SEED:
                 conn.execute(
-                    "INSERT INTO stores (store_id, store_name, city, address, status) VALUES (?, ?, ?, ?, ?)",
+                    """
+                    INSERT INTO stores (
+                        store_id, store_name, city, address, status, store_manager, monthly_budget_usd, month_to_date_spend_usd
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
                     (
                         store["store_id"],
                         store["store_name"],
                         store["city"],
                         store["address"],
                         store["status"],
+                        store.get("store_manager", "Store Manager"),
+                        store.get("monthly_budget_usd", 15000.0),
+                        store.get("month_to_date_spend_usd", 7500.0),
                     ),
                 )
 
@@ -225,8 +275,8 @@ def init_db():
                         INSERT INTO inventory_items (
                             store_id, item_key, item_name, category, bin_id, level_percent,
                             current_weight_kg, max_capacity_kg, temp_celsius, pressure_bar,
-                            status, hourly_consumption_kg
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            status, hourly_consumption_kg, unit_price_usd, supplier_name
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """,
                         (
                             store["store_id"],
@@ -241,6 +291,8 @@ def init_db():
                             1.02,
                             status,
                             prod["hourly_consumption_kg"],
+                            prod.get("unit_price_usd", 18.50),
+                            prod.get("supplier_name", "Cymbal Roasters Direct"),
                         ),
                     )
         conn.commit()
@@ -299,16 +351,31 @@ def get_all_stores_telemetry() -> dict[str, dict[str, Any]]:
             bins = {}
             has_critical = False
             has_warning = False
+            store_inventory_value = 0.0
 
             for item in items:
                 k = item["item_key"]
+                unit_price = item["unit_price_usd"] if "unit_price_usd" in item.keys() else 18.50
+                supplier = item["supplier_name"] if "supplier_name" in item.keys() else "Cymbal Roasters Direct"
+                curr_wt = item["current_weight_kg"]
+                max_cap = item["max_capacity_kg"]
+                bin_value = round(curr_wt * unit_price, 2)
+                reorder_qty = round(max_cap - curr_wt, 1)
+                reorder_cost = round(reorder_qty * unit_price, 2)
+                store_inventory_value += bin_value
+
                 bins[k] = {
                     "item_name": item["item_name"],
                     "category": item["category"],
                     "bin_id": item["bin_id"],
                     "level_percent": item["level_percent"],
-                    "current_weight_kg": item["current_weight_kg"],
-                    "max_capacity_kg": item["max_capacity_kg"],
+                    "current_weight_kg": curr_wt,
+                    "max_capacity_kg": max_cap,
+                    "unit_price_usd": unit_price,
+                    "current_value_usd": bin_value,
+                    "reorder_qty_kg": reorder_qty,
+                    "reorder_cost_usd": reorder_cost,
+                    "supplier_name": supplier,
                     "temp_celsius": item["temp_celsius"],
                     "pressure_bar": item["pressure_bar"],
                     "status": item["status"],
@@ -326,6 +393,10 @@ def get_all_stores_telemetry() -> dict[str, dict[str, Any]]:
                 "city": s["city"],
                 "address": s["address"],
                 "status": overall_status,
+                "store_manager": s["store_manager"] if "store_manager" in s.keys() else "Store Manager",
+                "monthly_budget_usd": s["monthly_budget_usd"] if "monthly_budget_usd" in s.keys() else 15000.0,
+                "month_to_date_spend_usd": s["month_to_date_spend_usd"] if "month_to_date_spend_usd" in s.keys() else 7500.0,
+                "total_inventory_value_usd": round(store_inventory_value, 2),
                 "bins": bins,
                 "anomalies": [],
             }
