@@ -149,61 +149,49 @@ def get_simulation_status() -> dict[str, Any]:
     }
 
 
+_HEALTH_CACHE: dict[str, Any] = {"data": None, "expires_at": 0.0}
+
+
 def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
-    """Check if the Cloud Run synthetic telemetry & dashboard backend is online exclusively on Cloud Run, auto-starting if needed."""
+    """Check if the Cloud Run synthetic telemetry & dashboard backend is online with 30s TTL caching and fast timeout."""
+    import time
+    now = time.time()
+    if _HEALTH_CACHE["data"] and now < _HEALTH_CACHE["expires_at"]:
+        return _HEALTH_CACHE["data"]
+
     base_url = url.rstrip("/")
-    endpoints_to_check = [
-        f"{base_url}/health",
-        f"{base_url}/api/dashboard/data",
-        f"{base_url}/",
-    ]
     dashboard_url = f"{base_url}/dashboard"
 
-    last_error = None
-    # 1. Fast check against Cloud Run public URL (5s timeout)
-    for endpoint in endpoints_to_check:
-        try:
-            req = urllib.request.Request(endpoint, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
-            with urllib.request.urlopen(req, timeout=5) as res:
-                if res.status in (200, 301, 302, 307, 308):
-                    return {
-                        "is_online": True,
-                        "status": "ONLINE",
-                        "dashboard_url": dashboard_url,
-                        "health_endpoint": endpoint,
-                        "http_code": res.status,
-                        "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
-                    }
-        except Exception as e:
-            last_error = str(e)
-            continue
+    # Fast 1.5s socket check
+    try:
+        req = urllib.request.Request(f"{base_url}/health", headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
+        with urllib.request.urlopen(req, timeout=1.5) as res:
+            if res.status in (200, 301, 302, 307, 308):
+                res_data = {
+                    "is_online": True,
+                    "status": "ONLINE",
+                    "dashboard_url": dashboard_url,
+                    "health_endpoint": f"{base_url}/health",
+                    "http_code": res.status,
+                    "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
+                }
+                _HEALTH_CACHE["data"] = res_data
+                _HEALTH_CACHE["expires_at"] = now + 30.0  # Cache for 30s
+                return res_data
+    except Exception as e:
+        pass
 
-    # 2. Auto-trigger/wake up Cloud Run service on prompt request if cold-started (15s timeout)
-    for endpoint in endpoints_to_check:
-        try:
-            req = urllib.request.Request(endpoint, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0-Wakeup"})
-            with urllib.request.urlopen(req, timeout=15) as res:
-                if res.status in (200, 301, 302, 307, 308):
-                    return {
-                        "is_online": True,
-                        "status": "ONLINE",
-                        "dashboard_url": dashboard_url,
-                        "health_endpoint": endpoint,
-                        "http_code": res.status,
-                        "message": f"Cloud Run telemetry backend successfully STARTED & ONLINE at {dashboard_url}"
-                    }
-        except Exception as e:
-            last_error = str(e)
-            continue
-
-    return {
+    # Fallback status if offline
+    res_data = {
         "is_online": False,
         "status": "OFFLINE",
         "dashboard_url": dashboard_url,
         "health_endpoint": f"{base_url}/health",
-        "error": last_error,
         "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is unreachable."
     }
+    _HEALTH_CACHE["data"] = res_data
+    _HEALTH_CACHE["expires_at"] = now + 10.0  # Short cache for offline state
+    return res_data
 
 
 def check_backend_status() -> dict[str, Any]:
