@@ -1,202 +1,195 @@
 # Copyright 2026 Google LLC
 
 import datetime
-import os
-import urllib.request
 from typing import Any
 
 from app.database import get_all_stores_telemetry, update_sensor_level
 
-CLOUD_RUN_DASHBOARD_URL = os.getenv(
-    "CLOUD_RUN_DASHBOARD_URL",
-    "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
-)
-
 STORE_TELEMETRY = get_all_stores_telemetry()
 
+# ---------------------------------------------------------------------------
+# Always-on simulation engine
+# The simulation starts the moment this module is imported. There is no on/off
+# switch — stores always have a background trickle of orders consuming stock.
+# Event modes (rush, catering, lull) temporarily change the consumption rate.
+# ---------------------------------------------------------------------------
+
+_EVENT_MODES = {
+    "normal": {"label": "Normal Operations", "multiplier": 1.0},
+    "morning_rush": {"label": "☕ Morning Rush", "multiplier": 4.5},
+    "afternoon_lull": {"label": "😴 Afternoon Lull", "multiplier": 0.25},
+    "catering_event": {"label": "🎉 Catering Event", "multiplier": 8.0},
+    "weekend_surge": {"label": "📈 Weekend Surge", "multiplier": 3.0},
+}
 
 SIMULATION_STATE: dict[str, Any] = {
-    "is_active": False,
-    "started_at": None,
-    "expires_at": None,
-    "max_duration_seconds": 7200,  # 2 hours max
-    "simulated_start_time": "06:30:00",
+    "started_at": datetime.datetime.now(datetime.UTC),
+    "last_tick_at": None,
+    "event_mode": "normal",
+    "event_started_at": None,
+    "event_duration_seconds": 0,
     "simulated_orders": [],
     "total_orders_processed": 0,
 }
 
+# Base hourly consumption rates (kg) per store per bin at normal trickle
+_BASE_RATES: dict[str, dict[str, float]] = {
+    "downtown-flagship":  {"dark-roast-beans": 0.15, "espresso-blend": 0.12, "oat-milk": 0.18},
+    "airport-express":    {"dark-roast-beans": 0.10, "espresso-blend": 0.08, "oat-milk": 0.09},
+    "financial-district": {"dark-roast-beans": 0.08, "espresso-blend": 0.10, "oat-milk": 0.07},
+    "mission-roastery":   {"dark-roast-beans": 0.12, "espresso-blend": 0.09, "oat-milk": 0.06},
+    "union-square":       {"dark-roast-beans": 0.09, "espresso-blend": 0.07, "oat-milk": 0.11},
+}
 
-def check_simulation_timeout() -> bool:
-    """Check if the simulation session has exceeded its 2-hour timeout and tick dynamic state."""
-    if not SIMULATION_STATE["is_active"]:
-        return False
+_ORDER_TEMPLATES = [
+    ("Oat Milk Lattes",         "downtown-flagship",  "oat-milk"),
+    ("Double Espresso Shots",   "downtown-flagship",  "espresso-blend"),
+    ("Cold Brew Bottled",       "airport-express",    "dark-roast-beans"),
+    ("Cappuccinos",             "downtown-flagship",  "oat-milk"),
+    ("Drip Dark Roast",         "downtown-flagship",  "dark-roast-beans"),
+    ("Flat Whites",             "financial-district", "espresso-blend"),
+    ("Pour-Overs",              "mission-roastery",   "dark-roast-beans"),
+    ("Iced Lattes",             "union-square",       "oat-milk"),
+    ("Cortados",                "airport-express",    "espresso-blend"),
+    ("Batch Brew (Catering)",   "downtown-flagship",  "dark-roast-beans"),
+]
 
-    now = datetime.datetime.now(datetime.UTC)
-    expires_at = SIMULATION_STATE.get("expires_at")
 
-    if expires_at and now > expires_at:
-        SIMULATION_STATE["is_active"] = False
-        SIMULATION_STATE["started_at"] = None
-        SIMULATION_STATE["expires_at"] = None
-        return True
-
-    # Tick dynamic order simulation if active
-    tick_simulation()
-    return SIMULATION_STATE["is_active"]
+def _active_multiplier() -> float:
+    """Return the current consumption multiplier, reverting expired events to normal."""
+    mode = SIMULATION_STATE["event_mode"]
+    if mode == "normal":
+        return 1.0
+    started = SIMULATION_STATE.get("event_started_at")
+    duration = SIMULATION_STATE.get("event_duration_seconds", 0)
+    if started and duration:
+        elapsed = (datetime.datetime.now(datetime.UTC) - started).total_seconds()
+        if elapsed >= duration:
+            SIMULATION_STATE["event_mode"] = "normal"
+            SIMULATION_STATE["event_started_at"] = None
+            SIMULATION_STATE["event_duration_seconds"] = 0
+            return 1.0
+    return _EVENT_MODES.get(mode, {}).get("multiplier", 1.0)
 
 
 def tick_simulation() -> None:
-    """Simulate continuous morning coffee orders depleting stock over time."""
-    if not SIMULATION_STATE["is_active"] or not SIMULATION_STATE.get("started_at"):
+    """Consume stock based on real elapsed time and current event mode."""
+    now = datetime.datetime.now(datetime.UTC)
+    last = SIMULATION_STATE["last_tick_at"]
+    if last is None:
+        SIMULATION_STATE["last_tick_at"] = now
         return
 
-    now = datetime.datetime.now(datetime.UTC)
-    elapsed_seconds = (now - SIMULATION_STATE["started_at"]).total_seconds()
+    elapsed_hours = (now - last).total_seconds() / 3600.0
+    if elapsed_hours < 0.00027:  # Less than ~1 second — skip
+        return
 
-    # Map 1 real second -> 1.5 simulated minutes of morning rush
-    simulated_minutes = int(elapsed_seconds * 1.5)
-    base_time = datetime.datetime.combine(datetime.date.today(), datetime.time(6, 30))
-    sim_time = (base_time + datetime.timedelta(minutes=simulated_minutes)).strftime(
-        "%I:%M %p"
-    )
+    SIMULATION_STATE["last_tick_at"] = now
+    multiplier = _active_multiplier()
+    all_stores = get_all_stores_telemetry()
 
-    # Gradual morning consumption curve per store
-    # Downtown Flagship (#101) - Heavy morning rush
-    depletion_amount = min(75.0, round(simulated_minutes * 0.35, 1))
+    for store_key, rates in _BASE_RATES.items():
+        store = all_stores.get(store_key)
+        if not store:
+            continue
+        for bin_key, base_kg_per_hour in rates.items():
+            bin_data = store["bins"].get(bin_key)
+            if not bin_data:
+                continue
+            consumed = base_kg_per_hour * elapsed_hours * multiplier
+            current = bin_data["current_weight_kg"]
+            max_cap = bin_data["max_capacity_kg"]
+            new_weight = max(0.5, round(current - consumed, 2))
+            update_sensor_level(store_key, bin_key, round((new_weight / max_cap) * 100, 1))
 
-    new_df_beans = max(8.0, round(82.0 - depletion_amount, 1))
-    new_df_espresso = max(15.0, round(65.0 - (depletion_amount * 0.8), 1))
-    new_df_milk = max(6.0, round(45.0 - (depletion_amount * 0.9), 1))
-
-    update_sensor_level("downtown-flagship", "dark-roast-beans", new_df_beans)
-    update_sensor_level("downtown-flagship", "espresso-blend", new_df_espresso)
-    update_sensor_level("downtown-flagship", "oat-milk", new_df_milk)
-
-    # Generate synthetic order event log items
+    # Append a synthetic order entry
     orders = SIMULATION_STATE.get("simulated_orders", [])
-    if len(orders) < min(50, simulated_minutes // 2 + 1):
-        order_types = [
-            ("16x Oat Milk Lattes", "downtown-flagship", -0.64, "oat-milk"),
-            ("12x Double Espresso Shots", "downtown-flagship", -0.36, "espresso-blend"),
-            ("8x Cold Brew Bottled", "airport-express", -0.40, "dark-roast-beans"),
-            ("20x Cappuccinos", "downtown-flagship", -0.80, "oat-milk"),
-            ("15x Drip Dark Roast", "downtown-flagship", -0.45, "dark-roast-beans"),
-        ]
-        item = order_types[len(orders) % len(order_types)]
-        orders.insert(
-            0,
-            {
-                "id": f"ORD-SF-{1000 + len(orders)}",
-                "time": sim_time,
-                "description": item[0],
-                "store_id": item[1],
-                "impact": f"{item[2]} kg",
-                "status": "PROCESSING",
-            },
-        )
-        SIMULATION_STATE["simulated_orders"] = orders[:20]  # Keep latest 20
-        SIMULATION_STATE["total_orders_processed"] = len(orders) * 18
+    template = _ORDER_TEMPLATES[len(orders) % len(_ORDER_TEMPLATES)]
+    qty = int(8 + multiplier * 4)
+    orders.insert(0, {
+        "id": f"ORD-{1000 + SIMULATION_STATE['total_orders_processed']}",
+        "time": now.strftime("%I:%M %p"),
+        "description": f"{qty}x {template[0]}",
+        "store_id": template[1],
+        "bin": template[2],
+        "mode": SIMULATION_STATE["event_mode"],
+    })
+    SIMULATION_STATE["simulated_orders"] = orders[:30]
+    SIMULATION_STATE["total_orders_processed"] += qty
 
 
-def start_simulation(duration_minutes: int = 120) -> dict[str, Any]:
-    """Start synthetic demo simulation mode with a max 2-hour auto-timeout."""
-    duration_minutes = min(max(1, duration_minutes), 120)  # Cap at 120 mins (2h max)
-    now = datetime.datetime.now(datetime.UTC)
-    expires_at = now + datetime.timedelta(minutes=duration_minutes)
-
-    SIMULATION_STATE["is_active"] = True
-    SIMULATION_STATE["started_at"] = now
-    SIMULATION_STATE["expires_at"] = expires_at
-    SIMULATION_STATE["simulated_orders"] = []
-    SIMULATION_STATE["total_orders_processed"] = 0
-
-    tick_simulation()
-
-    return {
-        "status": "SIMULATION_STARTED",
-        "duration_minutes": duration_minutes,
-        "expires_at": expires_at.isoformat(),
-        "max_timeout": "2 hours max",
-    }
-
-
-def stop_simulation() -> dict[str, Any]:
-    """Stop synthetic demo simulation mode."""
-    SIMULATION_STATE["is_active"] = False
-    SIMULATION_STATE["started_at"] = None
-    SIMULATION_STATE["expires_at"] = None
-    return {"status": "SIMULATION_STOPPED"}
+# Auto-start trickle when module loads
+SIMULATION_STATE["last_tick_at"] = datetime.datetime.now(datetime.UTC)
 
 
 def get_simulation_status() -> dict[str, Any]:
-    """Get current simulation status and remaining time."""
-    is_active = check_simulation_timeout()
-    remaining_seconds = 0
-
-    if is_active and SIMULATION_STATE.get("expires_at"):
-        now = datetime.datetime.now(datetime.UTC)
-        diff = (SIMULATION_STATE["expires_at"] - now).total_seconds()
-        remaining_seconds = max(0, int(diff))
-
+    """Return current simulation state."""
+    tick_simulation()
+    mode = SIMULATION_STATE["event_mode"]
+    info = _EVENT_MODES.get(mode, _EVENT_MODES["normal"])
+    remaining = 0
+    started = SIMULATION_STATE.get("event_started_at")
+    duration = SIMULATION_STATE.get("event_duration_seconds", 0)
+    if started and duration:
+        elapsed = (datetime.datetime.now(datetime.UTC) - started).total_seconds()
+        remaining = max(0, int(duration - elapsed))
     return {
-        "is_active": is_active,
-        "remaining_seconds": remaining_seconds,
-        "expires_at": SIMULATION_STATE["expires_at"].isoformat()
-        if is_active and SIMULATION_STATE.get("expires_at")
-        else None,
-        "simulated_orders": SIMULATION_STATE.get("simulated_orders", []),
-        "total_orders_processed": SIMULATION_STATE.get("total_orders_processed", 0),
+        "always_on": True,
+        "event_mode": mode,
+        "event_label": info["label"],
+        "multiplier": info["multiplier"],
+        "event_remaining_seconds": remaining,
+        "total_orders_processed": SIMULATION_STATE["total_orders_processed"],
+        "recent_orders": SIMULATION_STATE["simulated_orders"][:5],
+        "uptime_seconds": int(
+            (datetime.datetime.now(datetime.UTC) - SIMULATION_STATE["started_at"]).total_seconds()
+        ),
     }
 
 
-_HEALTH_CACHE: dict[str, Any] = {"data": None, "expires_at": 0.0}
+def trigger_event(
+    event_mode: str = "morning_rush",
+    duration_minutes: int = 15,
+) -> dict[str, Any]:
+    """Trigger a consumption event (morning_rush, catering_event, afternoon_lull,
+    weekend_surge) for a limited duration. The simulation always runs — this just
+    changes the rate temporarily.
 
+    Args:
+        event_mode: One of 'morning_rush', 'catering_event', 'afternoon_lull',
+            'weekend_surge'. Use 'normal' to reset to baseline.
+        duration_minutes: How long the event lasts (1-120 minutes).
+    """
+    duration_minutes = min(max(1, duration_minutes), 120)
+    if event_mode not in _EVENT_MODES:
+        return {"error": f"Unknown event mode '{event_mode}'. Valid: {list(_EVENT_MODES.keys())}"}
 
-def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
-    """Check if the Cloud Run synthetic telemetry & dashboard backend is online with 30s TTL caching and fast timeout."""
-    import time
-    now = time.time()
-    if _HEALTH_CACHE["data"] and now < _HEALTH_CACHE["expires_at"]:
-        return _HEALTH_CACHE["data"]
+    SIMULATION_STATE["event_mode"] = event_mode
+    SIMULATION_STATE["event_started_at"] = datetime.datetime.now(datetime.UTC)
+    SIMULATION_STATE["event_duration_seconds"] = duration_minutes * 60
+    tick_simulation()
 
-    base_url = url.rstrip("/")
-    dashboard_url = f"{base_url}/dashboard"
-
-    # Fast 1.5s socket check
-    try:
-        req = urllib.request.Request(f"{base_url}/health", headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
-        with urllib.request.urlopen(req, timeout=1.5) as res:
-            if res.status in (200, 301, 302, 307, 308):
-                res_data = {
-                    "is_online": True,
-                    "status": "ONLINE",
-                    "dashboard_url": dashboard_url,
-                    "health_endpoint": f"{base_url}/health",
-                    "http_code": res.status,
-                    "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
-                }
-                _HEALTH_CACHE["data"] = res_data
-                _HEALTH_CACHE["expires_at"] = now + 30.0  # Cache for 30s
-                return res_data
-    except Exception:
-        pass
-
-    # Fallback status if offline
-    res_data = {
-        "is_online": False,
-        "status": "OFFLINE",
-        "dashboard_url": dashboard_url,
-        "health_endpoint": f"{base_url}/health",
-        "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is unreachable."
+    info = _EVENT_MODES[event_mode]
+    return {
+        "status": "EVENT_TRIGGERED",
+        "event_mode": event_mode,
+        "event_label": info["label"],
+        "multiplier": info["multiplier"],
+        "duration_minutes": duration_minutes,
+        "description": f"Consumption rate is now {info['multiplier']}x normal for {duration_minutes} minutes.",
     }
-    _HEALTH_CACHE["data"] = res_data
-    _HEALTH_CACHE["expires_at"] = now + 10.0  # Short cache for offline state
-    return res_data
 
 
-def check_backend_status() -> dict[str, Any]:
-    """Check the operational status of the Cloud Run synthetic data backend service."""
-    return check_cloud_run_backend_health()
+# Keep start_simulation / stop_simulation as thin shims so existing tests don't break
+def start_simulation(duration_minutes: int = 120) -> dict[str, Any]:
+    """Alias for trigger_event('morning_rush'). Simulation is always-on."""
+    return trigger_event("morning_rush", min(duration_minutes, 120))
+
+
+def stop_simulation() -> dict[str, Any]:
+    """Reset event mode to normal trickle. Simulation stays always-on."""
+    return trigger_event("normal", 120)
+
 
 
 def resolve_store_id(store_id: str) -> str | None:
@@ -221,10 +214,9 @@ def resolve_store_id(store_id: str) -> str | None:
 
 
 def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
-    """Get real-time IoT bin telemetry from SQLite database across all 5 store locations."""
-    check_simulation_timeout()
+    """Get real-time IoT bin telemetry from all 5 store locations."""
+    tick_simulation()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    backend_health = check_cloud_run_backend_health()
     all_stores = get_all_stores_telemetry()
 
     if not store_id or store_id.lower() in ("all", "all-stores", "across all stores"):
@@ -234,13 +226,12 @@ def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
             "total_stores": len(all_stores),
             "stores": all_stores,
             "simulation": get_simulation_status(),
-            "cloud_run_backend": backend_health,
         }
 
     key = resolve_store_id(store_id)
     store = all_stores.get(key) if key else None
     if not store:
-        return {"error": f"Store ID '{store_id}' not found.", "cloud_run_backend": backend_health}
+        return {"error": f"Store ID '{store_id}' not found."}
 
     return {
         "store_id": key,
@@ -248,7 +239,6 @@ def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
         "timestamp": timestamp,
         "bins": store["bins"],
         "simulation": get_simulation_status(),
-        "cloud_run_backend": backend_health,
     }
 
 

@@ -1,11 +1,7 @@
 # Copyright 2026 Google LLC
 
-import datetime
-
 from app.tools.telemetry import (
     SIMULATION_STATE,
-    check_backend_status,
-    check_simulation_timeout,
     detect_equipment_anomalies,
     generate_telemetry_chart,
     get_bin_telemetry,
@@ -15,38 +11,55 @@ from app.tools.telemetry import (
     start_simulation,
     stop_simulation,
     tick_simulation,
+    trigger_event,
 )
 
 
-def test_simulation_lifecycle():
-    """Test start, status, tick, and stop of simulation."""
+def test_simulation_always_on():
+    """Simulation is always-on. Status always returns always_on=True."""
+    status = get_simulation_status()
+    assert status["always_on"] is True
+    assert "event_mode" in status
+    assert "multiplier" in status
+    assert "total_orders_processed" in status
+
+
+def test_trigger_event_modes():
+    """Test all valid event modes via trigger_event."""
+    for mode in ("morning_rush", "catering_event", "afternoon_lull", "weekend_surge", "normal"):
+        res = trigger_event(event_mode=mode, duration_minutes=5)
+        assert res["status"] == "EVENT_TRIGGERED"
+        assert res["event_mode"] == mode
+        assert res["multiplier"] > 0
+
+
+def test_trigger_event_invalid():
+    """Invalid event mode returns error."""
+    res = trigger_event(event_mode="nonexistent_mode")
+    assert "error" in res
+
+
+def test_start_stop_shims():
+    """start_simulation / stop_simulation are shims that still work."""
     start_res = start_simulation(duration_minutes=30)
-    assert start_res["status"] == "SIMULATION_STARTED"
-    assert SIMULATION_STATE["is_active"] is True
-
-    status_res = get_simulation_status()
-    assert status_res["is_active"] is True
-    assert status_res["remaining_seconds"] > 0
-
-    tick_simulation()
+    assert start_res["status"] == "EVENT_TRIGGERED"
+    assert start_res["event_mode"] == "morning_rush"
 
     stop_res = stop_simulation()
-    assert stop_res["status"] == "SIMULATION_STOPPED"
-    assert SIMULATION_STATE["is_active"] is False
-
-    status_stopped = get_simulation_status()
-    assert status_stopped["is_active"] is False
+    assert stop_res["status"] == "EVENT_TRIGGERED"
+    assert stop_res["event_mode"] == "normal"
 
 
-def test_simulation_timeout():
-    """Test simulation timeout expiration behavior."""
-    start_simulation(duration_minutes=1)
-    SIMULATION_STATE["expires_at"] = datetime.datetime.now(
-        datetime.UTC
-    ) - datetime.timedelta(seconds=10)
-    expired = check_simulation_timeout()
-    assert expired is True
-    assert SIMULATION_STATE["is_active"] is False
+def test_tick_simulation():
+    """Tick depletes stock over time."""
+    import datetime
+
+    SIMULATION_STATE["last_tick_at"] = (
+        datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=30)
+    )
+    tick_simulation()
+    # After a 30-min tick, orders should have been appended
+    assert SIMULATION_STATE["total_orders_processed"] > 0
 
 
 def test_get_bin_telemetry_all_and_specific():
@@ -54,10 +67,13 @@ def test_get_bin_telemetry_all_and_specific():
     all_res = get_bin_telemetry("all")
     assert all_res["mode"] == "ALL_LOCATIONS"
     assert "downtown-flagship" in all_res["stores"]
+    # No cloud_run_backend key — backend is always-on, no health check
+    assert "cloud_run_backend" not in all_res
 
     specific_res = get_bin_telemetry("downtown-flagship")
     assert specific_res["store_id"] == "downtown-flagship"
     assert "bins" in specific_res
+    assert "cloud_run_backend" not in specific_res
 
     airport_res = get_bin_telemetry("airport-express")
     assert airport_res["store_id"] == "airport-express"
@@ -116,12 +132,3 @@ def test_generate_telemetry_chart_types():
 
     invalid_store = generate_telemetry_chart(store_id="unknown_store")
     assert invalid_store["store_id"] == "downtown-flagship"
-
-
-def test_check_backend_status():
-    """Test check_backend_status and check_cloud_run_backend_health structure."""
-    res = check_backend_status()
-    assert "status" in res
-    assert "dashboard_url" in res
-    assert "health_endpoint" in res
-    assert res["status"] in ("ONLINE", "OFFLINE")
