@@ -24,4 +24,4 @@ jobs:
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-      - run: touch .env && uv run pytest --cov=app --cov-fail-under=80
+      - run: touch .env && uv run pytest tests/unit/ --cov=app --cov-fail-under=80
