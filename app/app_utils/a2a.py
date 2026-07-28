@@ -120,6 +120,7 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
             async for event in self._runner.run_async(
                 user_id=self._user_id, session_id=session.id, new_message=content
             ):
+                await updater.update_status(types.TaskState.working)
                 if event.is_final_response():
                     if (
                         event.content
