@@ -74,7 +74,7 @@ logger = logging.getLogger(__name__)
 
 
 class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
-    """Executor that intercepts LLM text output and splits A2UI JSON into native application/json+a2ui DataParts."""
+    """Executor that intercepts LLM text and A2UI DataParts and streams them to Gemini Enterprise as A2A Part messages."""
 
     def __init__(self, agent: BaseAgent, runner: Runner):
         self._agent = agent
@@ -114,16 +114,51 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         await updater.start_work()
 
         content = genai_types.Content(role="user", parts=[{"text": query}])
-        final_response_content = ""
+
+        text_chunks: list[str] = []
+        data_parts: list[types.Part] = []
 
         try:
             async for event in self._runner.run_async(
                 user_id=self._user_id, session_id=session.id, new_message=content
             ):
-                if event.is_final_response() and event.content and event.content.parts:
+                if hasattr(event, "content") and event.content and event.content.parts:
                     for part in event.content.parts:
                         if hasattr(part, "text") and part.text:
-                            final_response_content += part.text
+                            t = part.text.strip()
+                            if t and t != "\u200b" and t not in text_chunks:
+                                text_chunks.append(t)
+                        elif hasattr(part, "inline_data") and part.inline_data:
+                            blob = part.inline_data.data
+                            if isinstance(blob, bytes):
+                                blob_str = blob.decode("utf-8", errors="ignore")
+                                import json
+                                import re
+                                matches = re.findall(
+                                    r"<a2a_datapart_json>(.*?)</a2a_datapart_json>",
+                                    blob_str,
+                                    re.DOTALL,
+                                )
+                                for match_str in matches:
+                                    try:
+                                        raw_data = json.loads(match_str)
+                                        a2ui_msg = raw_data.get("data", raw_data)
+                                        mime_type = raw_data.get("metadata", {}).get(
+                                            "mimeType", "application/json+a2ui"
+                                        )
+                                        data_parts.append(
+                                            types.Part(
+                                                root=types.DataPart(
+                                                    data=a2ui_msg,
+                                                    metadata={"mimeType": mime_type},
+                                                )
+                                            )
+                                        )
+                                    except Exception as ex:
+                                        logger.warning(
+                                            "Failed to parse A2UI DataPart blob in A2A executor: %s",
+                                            ex,
+                                        )
         except Exception as e:
             await updater.failed(
                 message=utils.new_agent_text_message(
@@ -132,17 +167,32 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
             )
             return
 
-        if not final_response_content:
+        a2a_parts: list[types.Part] = []
+
+        if text_chunks:
+            import re
+            clean_summary = "\n\n".join(text_chunks)
+            clean_summary = re.sub(r"</?a2a_datapart_json>", "", clean_summary)
+            clean_summary = re.sub(r"<a2ui-json>.*?</a2ui-json>", "", clean_summary, flags=re.DOTALL)
+            clean_summary = re.sub(r"```(?:json)?.*", "", clean_summary, flags=re.DOTALL).strip()
+            if clean_summary:
+                a2a_parts.append(types.Part(root=types.TextPart(text=clean_summary)))
+
+        a2a_parts.extend(data_parts)
+
+        # Fallback if no inline_data DataParts were captured
+        if not data_parts and text_chunks:
+            from app.a2ui_config import format_a2ui_parts
+            a2a_parts = format_a2ui_parts("\n\n".join(text_chunks))
+
+        if not a2a_parts:
             await updater.failed(
                 message=utils.new_agent_text_message("No response generated.")
             )
             return
 
-        from app.a2ui_config import format_a2ui_parts
-
-        parts = format_a2ui_parts(final_response_content)
-        await updater.add_artifact(parts, name="response")
-        await updater.complete()
+        response_message = utils.new_agent_parts_message(a2a_parts)
+        await updater.complete(message=response_message)
 
     async def cancel(
         self,
