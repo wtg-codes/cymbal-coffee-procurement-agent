@@ -2,43 +2,31 @@ name: Deploy to Cloud Run & Sync Gemini Enterprise
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
       id-token: write
-
     steps:
       - uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
-
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Deploy Container to Cloud Run
+      - uses: google-github-actions/auth@v2
+        with: { credentials_json: '${{ secrets.GCP_CREDENTIALS }}' }
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Deploy to Cloud Run
         run: |
           gcloud run deploy cymbal-coffee-procurement-dashboard \
             --source . \
             --region us-central1 \
             --project hackathon-y26 \
             --set-env-vars GOOGLE_CLOUD_PROJECT=hackathon-y26,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_VERTEXAI=true,APP_URL=https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app \
-            --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-
-      - name: Register / Synchronize Agent in Gemini Enterprise
+            --set-secrets OAUTH_CLIENT_ID=iap-oauth-client-id:latest \
+            --allow-unauthenticated
+      - uses: astral-sh/setup-uv@v5
+        with: { enable-cache: true }
+      - name: Register Agent in Gemini Enterprise
         run: |
           uvx --from google-agents-cli agents-cli publish gemini-enterprise \
             --registration-type a2a \
@@ -46,12 +34,6 @@ jobs:
             --gemini-enterprise-app-id "projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752" \
             --display-name "cymbal_coffee_procurement_agent" \
             --description "Automated coffee procurement and telemetry agent for Cymbal Coffee Roasters"
-
-      - name: Ensure ALL_USERS Sharing Scope in Gemini Enterprise
+      - name: Ensure ALL_USERS Sharing Scope
         run: |
-          curl -s -X PATCH \
-            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
-            -H "Content-Type: application/json" \
-            -H "X-Goog-User-Project: 922201496337" \
-            "https://discoveryengine.googleapis.com/v1alpha/projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752/assistants/default_assistant/agents/12977200261735696190?updateMask=sharingConfig" \
-            -d '{"sharingConfig": {"scope": "ALL_USERS"}}'
+          curl -s -X PATCH -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" -H "X-Goog-User-Project: 922201496337" "https://discoveryengine.googleapis.com/v1alpha/projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752/assistants/default_assistant/agents/12977200261735696190?updateMask=sharingConfig" -d '{"sharingConfig": {"scope": "ALL_USERS"}}'
