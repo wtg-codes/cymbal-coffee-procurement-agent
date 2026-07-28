@@ -184,7 +184,9 @@ def a2ui_callback(
             ]
 
         if not a2ui_messages:
-            continue
+            from app.a2ui_generator import get_scenario_card
+            a2ui_messages = get_scenario_card(query=text, text=text)
+
 
         # Log for debugging
         logger.info(f"--- A2UI Callback raw text:\n{text[:300]}...")

@@ -207,9 +207,19 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         a2a_parts.extend(data_parts)
 
         # Fallback if no inline_data DataParts were captured
-        if not data_parts and text_chunks:
-            from app.a2ui_config import format_a2ui_parts
-            a2a_parts = format_a2ui_parts("\n\n".join(text_chunks))
+        if not data_parts:
+            from app.a2ui_generator import get_scenario_card
+            scenario_msgs = get_scenario_card(query=query, text="\n\n".join(text_chunks))
+            for msg in scenario_msgs:
+                a2a_parts.append(
+                    types.Part(
+                        root=types.DataPart(
+                            data=msg,
+                            metadata={"mimeType": "application/json+a2ui"},
+                        )
+                    )
+                )
+
 
         if not a2a_parts:
             await updater.failed(
