@@ -118,26 +118,14 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         content = genai_types.Content(role="user", parts=[{"text": query}])
         final_response_content = ""
 
-        async def _heartbeat():
-            try:
-                while True:
-                    await asyncio.sleep(2.0)
-                    await updater.update_status(types.TaskState.working)
-            except asyncio.CancelledError:
-                pass
-
-        heartbeat_task = asyncio.create_task(_heartbeat())
         try:
             async for event in self._runner.run_async(
                 user_id=self._user_id, session_id=session.id, new_message=content
             ):
-                if event.is_final_response():
-                    if (
-                        event.content
-                        and event.content.parts
-                        and event.content.parts[0].text
-                    ):
-                        final_response_content += event.content.parts[0].text
+                if event.is_final_response() and event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if hasattr(part, "text") and part.text:
+                            final_response_content += part.text
         except Exception as e:
             await updater.failed(
                 message=utils.new_agent_text_message(
@@ -145,10 +133,6 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
                 )
             )
             return
-        finally:
-            heartbeat_task.cancel()
-            with contextlib.suppress(asyncio.CancelledError):
-                await heartbeat_task
 
         if not final_response_content:
             await updater.failed(

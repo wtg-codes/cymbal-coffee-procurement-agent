@@ -4,6 +4,7 @@ import json
 import logging
 import re
 
+from a2a import types
 from a2ui.a2a.extension import get_a2ui_agent_extension
 from a2ui.basic_catalog.provider import BasicCatalog
 from a2ui.schema.constants import VERSION_0_9
@@ -217,112 +218,70 @@ def extract_json_payload(json_str: str) -> dict | None:
     return None
 
 
-def format_a2ui_parts(final_response_content: str):
-    """Parse text and convert A2UI JSON payloads into native A2A DataParts with mimeType application/json+a2ui."""
-    from a2a import types
+def extract_a2ui_json(content: str) -> tuple[str, list[str]]:
+    """Extract human text and A2UI JSON strings from LLM output."""
+    if not content:
+        return "", []
 
-    if not final_response_content:
-        return [types.Part(root=types.TextPart(text=""))]
+    text_part = content
+    json_blocks = []
 
-    text_part = final_response_content
-    json_string = None
+    if "<a2ui-json>" in content and "</a2ui-json>" in content:
+        parts = []
+        curr = content
+        while "<a2ui-json>" in curr and "</a2ui-json>" in curr:
+            start = curr.find("<a2ui-json>")
+            end = curr.find("</a2ui-json>")
+            parts.append(curr[:start])
+            json_blocks.append(curr[start + len("<a2ui-json>") : end].strip())
+            curr = curr[end + len("</a2ui-json>") :]
+        parts.append(curr)
+        text_part = "".join(parts).strip()
+    elif "---a2ui_JSON---" in content:
+        splits = content.split("---a2ui_JSON---", 1)
+        text_part = splits[0].strip()
+        json_blocks.append(splits[1].strip())
 
-    if "---a2ui_JSON---" in final_response_content:
-        text_part, json_string = final_response_content.split("---a2ui_JSON---", 1)
-    elif (
-        "<a2ui-json>" in final_response_content
-        and "</a2ui-json>" in final_response_content
-    ):
-        start = final_response_content.find("<a2ui-json>")
-        end = final_response_content.find("</a2ui-json>")
-        text_part = (
-            final_response_content[:start]
-            + final_response_content[end + len("</a2ui-json>") :]
-        )
-        json_string = final_response_content[
-            start + len("<a2ui-json>") : end
-        ]
+    return text_part, json_blocks
 
-    parts = []
-    if text_part and text_part.strip():
-        parts.append(types.Part(root=types.TextPart(text=text_part.strip())))
 
-    if json_string and json_string.strip():
-        data = extract_json_payload(json_string)
+def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
+    """Format final text and extracted A2UI JSON into A2A Part objects.
+
+    Produces DataParts with mimeType 'application/json+a2ui'.
+    """
+    clean_text, json_blocks = extract_a2ui_json(final_response_content)
+
+    parts: list[types.Part] = []
+
+    if clean_text:
+        parts.append(types.Part(root=types.TextPart(text=clean_text)))
+
+    for json_str in json_blocks:
+        data = extract_json_payload(json_str)
         if data:
             a2ui_payload = None
-            if isinstance(data, dict) and (
-                "a2ui_messages" in data
-                or "surfaceUpdate" in data
-                or "beginRendering" in data
-            ):
-                a2ui_payload = data
-            elif isinstance(data, list) and len(data) > 0:
-                first_comp = data[0] if isinstance(data[0], dict) else {}
-                root_id = first_comp.get("id", "root")
+            if isinstance(data, list):
                 a2ui_payload = {
                     "a2ui_messages": [
-                        {
-                            "beginRendering": {
-                                "surfaceId": "main",
-                                "root": root_id,
-                            }
-                        },
-                        {
-                            "surfaceUpdate": {
-                                "surfaceId": "main",
-                                "components": data,
-                            }
-                        },
-                    ]
-                }
-            elif isinstance(data, dict) and "id" in data:
-                root_id = data.get("id", "root")
-                a2ui_payload = {
-                    "a2ui_messages": [
-                        {
-                            "beginRendering": {
-                                "surfaceId": "main",
-                                "root": root_id,
-                            }
-                        },
-                        {
-                            "surfaceUpdate": {
-                                "surfaceId": "main",
-                                "components": [data],
-                            }
-                        },
+                        {"beginRendering": {"surfaceId": "main"}},
+                        {"surfaceUpdate": {"surfaceId": "main", "components": data}},
                     ]
                 }
             elif isinstance(data, dict):
-                a2ui_payload = data
+                if "a2ui_messages" in data:
+                    a2ui_payload = data
+                elif "surfaceUpdate" in data or "beginRendering" in data:
+                    a2ui_payload = {"a2ui_messages": [data]}
+                else:
+                    a2ui_payload = {
+                        "a2ui_messages": [
+                            {"beginRendering": {"surfaceId": "main"}},
+                            {"surfaceUpdate": {"surfaceId": "main", "components": [data]}},
+                        ]
+                    }
 
             if a2ui_payload:
-                # 1. Emit individual A2UI message DataParts for v0.8 client renderer compatibility
-                if isinstance(a2ui_payload, dict) and "a2ui_messages" in a2ui_payload:
-                    for msg in a2ui_payload["a2ui_messages"]:
-                        parts.append(
-                            types.Part(
-                                root=types.DataPart(
-                                    data=msg,
-                                    metadata={"mimeType": "application/json+a2ui"},
-                                )
-                            )
-                        )
-                elif isinstance(a2ui_payload, dict) and (
-                    "surfaceUpdate" in a2ui_payload
-                    or "beginRendering" in a2ui_payload
-                ):
-                    parts.append(
-                        types.Part(
-                            root=types.DataPart(
-                                data=a2ui_payload,
-                                metadata={"mimeType": "application/json+a2ui"},
-                            )
-                        )
-                    )
-
-                # 2. Also emit unified a2ui_payload DataPart for v0.9 client renderer compatibility
                 parts.append(
                     types.Part(
                         root=types.DataPart(
@@ -333,9 +292,7 @@ def format_a2ui_parts(final_response_content: str):
                 )
 
     if not parts:
-        parts.append(
-            types.Part(root=types.TextPart(text=final_response_content.strip()))
-        )
+        parts.append(types.Part(root=types.TextPart(text=final_response_content)))
 
     return parts
 
