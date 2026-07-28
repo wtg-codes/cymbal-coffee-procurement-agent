@@ -37,43 +37,62 @@ ROLE_DESCRIPTION = (
 # ---------------------------------------------------------------------------
 UI_DESCRIPTION = """\
 RESPONSE FORMAT:
-Write a brief 1-2 sentence summary, then end every response with an A2UI card in `<a2ui-json>` and `</a2ui-json>` tags. Always include the card — never return text only.
+Write a brief 1-2 sentence summary, then output A2UI wire-protocol JSON inside <a2ui-json> and </a2ui-json> tags.
+Always include the card. Max 15 components total.
 
-CARD SIZE RULE: Keep cards focused and concise. For "all stores" queries, show only the most actionable data:
-- Show the top 5 most critical/lowest bins across all stores (not every single bin)
-- For a single store: show all bins for that store
-- Always add action Buttons at the bottom of every card
+OUTPUT: A JSON array with TWO messages: first a beginRendering, then a surfaceUpdate.
+The surfaceUpdate components use the wrapper format: {{"id":"...", "component": {{"TypeName": <props>}}}}.
 
-CARD DESIGN BY SCENARIO:
-- Inventory alerts: Card "📦 Inventory Alert" → Column of Rows for each critical/warning bin: store name, item, level%, status (CRITICAL/WARNING/OPTIMAL) → Divider → Buttons: "Analyze Velocity", "Create Purchase Order", "Scan All Anomalies"
-- Single-store inventory: Card "📦 [Store Name] Inventory" → Column of all bins for that store → action Buttons
-- Purchase order: Card "📋 Purchase Order Created" → summary rows (item, store, qty, cost) → MultipleChoice urgency → Confirm Button
-- Equipment anomalies: Card → anomaly details → Buttons: "Alert Manager", "Rescan"
-- Consumption analysis: Card → velocity, stockout projection → "Create Expedited PO" Button
-- Charts: Call generate_telemetry_chart() first, put html_srcdoc in WebFrameSrcdoc (height: 240)
+SCHEMA (v0.8 — additionalProperties:false — any unknown prop CRASHES the renderer):
+
+Card:   props = {{"child": "<component_id>"}}            ← ONLY 'child'. NO title/label/header.
+Column: props = {{"children": {{"explicitList":["id1","id2"]}}, "distribution": "start"|"spaceBetween"|"spaceAround"|"center"|"end", "alignment": "start"|"center"|"end"|"stretch"}}
+Row:    props = same as Column
+Text:   props = {{"text": {{"literalString":"..."}}, "usageHint": "h1"|"h2"|"h3"|"h4"|"h5"|"body"|"caption"}}
+Button: props = {{"child": "<label_id>", "primary": true, "action": {{"name":"action_name", "context":[{"key":"message","value":{{"literalString":"..."}}}]}}}}
+Divider: props = {{"axis": "horizontal"}}
+
+CRITICAL RULES:
+1. Card has ONLY "child" — no other properties.
+2. Use "distribution" on Row/Column — NOT "mainAxisAlignment".
+3. Text usageHint ONLY: h1 h2 h3 h4 h5 body caption.
+4. No emoji — ASCII text only.
+5. Every ID in "child" / "explicitList" MUST exist as a component in the same surfaceUpdate.
+6. Put the card title as a Text h2 component inside the Column, NOT on the Card itself.
+
+CORRECT WIRE-PROTOCOL EXAMPLE:
+[
+  {{"beginRendering": {{"surfaceId": "inventoryCard", "root": "card"}}}},
+  {{"surfaceUpdate": {{
+    "surfaceId": "inventoryCard",
+    "components": [
+      {{"id":"card",    "component": {{"Card":   {{"child":"col"}}}}}},
+      {{"id":"col",     "component": {{"Column": {{"children":{{"explicitList":["title","row1","divider","btn"]}}, "distribution":"start", "alignment":"stretch"}}}}}},
+      {{"id":"title",   "component": {{"Text":   {{"text":{{"literalString":"Downtown Flagship Inventory"}}, "usageHint":"h2"}}}}}},
+      {{"id":"row1",    "component": {{"Row":    {{"children":{{"explicitList":["lbl1","val1"]}}, "distribution":"spaceBetween"}}}}}},
+      {{"id":"lbl1",    "component": {{"Text":   {{"text":{{"literalString":"Dark Roast Beans"}}, "usageHint":"body"}}}}}},
+      {{"id":"val1",    "component": {{"Text":   {{"text":{{"literalString":"23% - CRITICAL"}}, "usageHint":"body"}}}}}},
+      {{"id":"divider", "component": {{"Divider":{{"axis":"horizontal"}}}}}},
+      {{"id":"btn",     "component": {{"Button": {{"child":"btn_lbl", "primary":true, "action":{{"name":"create_po", "context":[{"key":"message","value":{{"literalString":"Create purchase order for downtown flagship dark roast beans"}}}]}}}}}}}},
+      {{"id":"btn_lbl", "component": {{"Text":   {{"text":{{"literalString":"Create Purchase Order"}}, "usageHint":"body"}}}}}}
+    ]
+  }}}}
+]
 
 TOOL USAGE:
-- Always call get_bin_telemetry() for inventory questions — never fabricate stock levels
-- Use get_bin_telemetry(store_id="all") for fleet-wide view, get_bin_telemetry(store_id="downtown-flagship") for a single store
+- Always call get_bin_telemetry() for inventory — never fabricate stock levels
+- get_bin_telemetry(store_id="all") for fleet, get_bin_telemetry(store_id="downtown-flagship") for single store
 - Call generate_telemetry_chart() for chart/graph requests
 - Call analyze_consumption_patterns() for velocity/trend questions
-- Call create_purchase_order() when the user confirms a reorder
+- Call create_purchase_order() when user confirms a reorder
 - Call detect_equipment_anomalies() for equipment/health scans
 - Telemetry is always available — never say the backend is offline
 
-SCHEMA RULES:
-1. Text.usageHint: h1, h2, h3, h4, body, or caption ONLY — never "header" or "title"
-2. Button: requires a "child" ID pointing to a separate Text component
-3. Button.action: {"name": "action_name", "context": [{"key": "message", "value": {"literalString": "What this button does"}}, ...]}
-4. Card: takes a single "child" ID — use a Column to hold multiple rows
-5. Column/Row children: {"children": {"explicitList": ["id1", "id2", ...]}}
-6. Component list order: root component FIRST, then parents before children
-7. Never use ListItem — use Row + Text children for key-value pairs
-8. Row with mainAxisAlignment "spaceBetween" for label-value pairs
-
-BUTTON EXAMPLE:
-{"id": "btn1", "type": "Button", "child": "btn1_lbl", "action": {"name": "create_po", "context": [{"key": "message", "value": {"literalString": "Create purchase order for downtown-flagship dark roast beans"}}, {"key": "store_id", "value": {"literalString": "downtown-flagship"}}, {"key": "item_key", "value": {"literalString": "dark-roast-beans"}}]}}
-{"id": "btn1_lbl", "type": "Text", "text": {"literalString": "🛒 Create Purchase Order"}, "usageHint": "body"}
+CARD DESIGNS:
+- Single store inventory: Column with title h2, one Row per bin (item name + level%), Divider, action Buttons
+- Fleet summary: top 5 critical bins only (store + item + level)
+- Purchase order confirmed: summary rows (item, qty, cost), confirmation Button
+- Consumption analysis: velocity rows, stockout date, "Create Expedited PO" Button
 """
 
 a2ui_system_prompt = schema_manager.generate_system_prompt(

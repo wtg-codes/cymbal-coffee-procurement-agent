@@ -2,7 +2,10 @@
 # Copyright 2026 Google LLC
 
 import json
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 from google.adk.agents import Agent
 from google.adk.agents.callback_context import CallbackContext
@@ -14,16 +17,45 @@ from google.genai import types
 from app.a2ui_config import a2ui_system_prompt
 
 
+def _strip_non_latin1(obj):
+    """Recursively replace non-Latin1 chars in string values with '?'.
+
+    The adk web A2UI renderer calls btoa(JSON.stringify(component)) client-side.
+    btoa() only accepts Latin1 (0-255). Emoji chars are above U+00FF so btoa
+    throws. This strips them at the source so the renderer never sees them.
+    """
+    if isinstance(obj, str):
+        return obj.encode("latin-1", errors="replace").decode("latin-1")
+    if isinstance(obj, dict):
+        return {k: _strip_non_latin1(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_strip_non_latin1(item) for item in obj]
+    return obj
+
+
 def _wrap_a2ui_part(a2ui_message: dict) -> types.Part:
-    """Wrap a single A2UI message as a DataPart for the adk web / GE renderer."""
-    datapart_json = json.dumps({
-        "kind": "data",
-        "metadata": {"mimeType": "application/json+a2ui"},
-        "data": a2ui_message,
-    })
+    r"""Wrap a single A2UI wire-protocol message as a DataPart for adk web / GE.
+
+    adk web's isA2uiDataPart() requires the inner JSON payload inside
+    <a2a_datapart_json>...</a2a_datapart_json> to have:
+      kind = "data"
+      metadata.mimeType = "application/json+a2ui"
+      data = <a2ui_message>
+
+    Uses ensure_ascii=True so emoji/Unicode are \uXXXX-escaped, preventing
+    btoa() failures in the browser renderer.
+    """
+    datapart_json = json.dumps(
+        {
+            "kind": "data",
+            "metadata": {"mimeType": "application/json+a2ui"},
+            "data": a2ui_message,
+        },
+        ensure_ascii=True,
+    )
     blob_data = (
         b"<a2a_datapart_json>"
-        + datapart_json.encode("utf-8")
+        + datapart_json.encode("ascii")
         + b"</a2a_datapart_json>"
     )
     return types.Part(
@@ -34,15 +66,35 @@ def _wrap_a2ui_part(a2ui_message: dict) -> types.Part:
     )
 
 
+def extract_a2ui_messages(data):
+    """Recursively find any wire-protocol dicts in data."""
+    messages = []
+    a2ui_keys = {"beginRendering", "surfaceUpdate", "dataModelUpdate", "deleteSurface"}
+
+    def _walk(obj):
+        if isinstance(obj, dict):
+            if any(k in obj for k in a2ui_keys):
+                messages.append(obj)
+                return
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, list):
+            for item in obj:
+                _walk(item)
+
+    _walk(data)
+    return messages
+
+
 def a2ui_callback(
     callback_context: CallbackContext,
     llm_response: LlmResponse,
 ) -> LlmResponse | None:
-    """Convert A2UI JSON in model output to rendered wire-protocol DataParts.
+    """Convert A2UI wire-protocol JSON in model output to rendered DataParts.
 
-    The model generates a flat JSON array inside <a2ui-json> tags.
-    This callback converts that to beginRendering + surfaceUpdate messages
-    so that adk web and Gemini Enterprise render actual UI components.
+    The model outputs full wire-protocol JSON (beginRendering + surfaceUpdate)
+    inside <a2ui-json> tags, matching the official a2ui-project samples pattern.
+    This callback extracts that JSON and wraps each message as a DataPart.
     """
     if not llm_response.content or not llm_response.content.parts:
         return None
@@ -54,15 +106,16 @@ def a2ui_callback(
         if not text:
             continue
 
-        # Find the <a2ui-json> block (may have brief intro text before it)
+        # Strip any literal <a2a_datapart_json> tags if present in text
+        text = re.sub(r"</?a2a_datapart_json>", "", text)
+
+        # Find the <a2ui-json> block
         a2ui_match = re.search(r"<a2ui-json>(.*?)</a2ui-json>", text, re.DOTALL)
         if not a2ui_match:
             # Fall back: look for bare JSON array starting with '['
-            json_start = None
-            for i, ch in enumerate(text):
-                if ch in ("[", "{"):
-                    json_start = i
-                    break
+            json_start = next(
+                (i for i, ch in enumerate(text) if ch in ("[", "{")), None
+            )
             if json_start is None:
                 continue
             json_text = text[json_start:]
@@ -85,37 +138,43 @@ def a2ui_callback(
             except json.JSONDecodeError:
                 continue
 
-        if not isinstance(parsed, list):
-            parsed = [parsed]
+        a2ui_messages = extract_a2ui_messages(parsed)
 
-        a2ui_keys = {"beginRendering", "surfaceUpdate", "dataModelUpdate", "deleteSurface"}
+        if not a2ui_messages and isinstance(parsed, list):
+            # Fallback: convert old flat component array [{"id":..., "type":..., props}]
+            # to wire protocol safely.
+            valid_comps = [c for c in parsed if isinstance(c, dict)]
+            if not valid_comps:
+                continue
 
-        # Check if the model already output wire-protocol messages
-        if any(isinstance(m, dict) and any(k in m for k in a2ui_keys) for m in parsed):
-            a2ui_messages = [m for m in parsed if isinstance(m, dict) and any(k in m for k in a2ui_keys)]
-        else:
-            # Convert flat component array to wire protocol
-            # Determine root: first component whose ID no other component references as a child
-            ids = {c.get("id") for c in parsed if isinstance(c, dict)}
+            ids = {c.get("id") for c in valid_comps if isinstance(c, dict) and c.get("id")}
             referenced = set()
-            for c in parsed:
+            for c in valid_comps:
                 if not isinstance(c, dict):
                     continue
                 if child := c.get("child"):
-                    referenced.add(child)
-                if children := c.get("children", {}):
-                    for cid in children.get("explicitList", []):
-                        referenced.add(cid)
-            root_ids = ids - referenced
-            root_id = next(iter(root_ids), parsed[0].get("id", "root")) if root_ids else parsed[0].get("id", "root")
+                    if isinstance(child, str):
+                        referenced.add(child)
+                children = c.get("children")
+                if isinstance(children, dict):
+                    explicit_list = children.get("explicitList")
+                    if isinstance(explicit_list, list):
+                        for cid in explicit_list:
+                            if isinstance(cid, str):
+                                referenced.add(cid)
+                elif isinstance(children, list):
+                    for cid in children:
+                        if isinstance(cid, str):
+                            referenced.add(cid)
 
-            # Build surfaceUpdate component list in ADK wire format
+            root_ids = [i for i in ids if i not in referenced]
+            first_id = valid_comps[0].get("id") or "card"
+            root_id = root_ids[0] if root_ids else first_id
+
             components = []
-            for c in parsed:
-                if not isinstance(c, dict):
-                    continue
-                comp_id = c.get("id", "unknown")
-                comp_type = c.get("type", "Text")
+            for idx, c in enumerate(valid_comps):
+                comp_id = c.get("id") or f"c_{idx}"
+                comp_type = c.get("type") or "Text"
                 props = {k: v for k, v in c.items() if k not in ("id", "type")}
                 components.append({"id": comp_id, "component": {comp_type: props}})
 
@@ -124,9 +183,25 @@ def a2ui_callback(
                 {"surfaceUpdate": {"surfaceId": "default", "components": components}},
             ]
 
-        new_parts = [_wrap_a2ui_part(msg) for msg in a2ui_messages]
+        if not a2ui_messages:
+            continue
+
+        # Log for debugging
+        logger.info(f"--- A2UI Callback raw text:\n{text[:300]}...")
+        logger.info(f"--- A2UI Callback parsed messages:\n{json.dumps(a2ui_messages, indent=2)[:500]}")
+
+        new_parts = [_wrap_a2ui_part(_strip_non_latin1(msg)) for msg in a2ui_messages]
+
+        # Preserve clean text summary before <a2ui-json> tag so users see context
+        summary_text = text.split("<a2ui-json>")[0].strip()
+        summary_text = re.sub(r"</?a2a_datapart_json>", "", summary_text)
+        summary_text = re.sub(r"```(?:json)?.*", "", summary_text, flags=re.DOTALL).strip()
+        if not summary_text:
+            summary_text = "\u200b"  # zero-width space fallback
+        text_part = types.Part(text=summary_text)
+
         return LlmResponse(
-            content=types.Content(role="model", parts=new_parts),
+            content=types.Content(role="model", parts=[text_part] + new_parts),
             custom_metadata={"a2a:response": "true"},
         )
 
