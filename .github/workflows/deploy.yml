@@ -46,3 +46,12 @@ jobs:
             --gemini-enterprise-app-id "projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752" \
             --display-name "cymbal_coffee_procurement_agent" \
             --description "Automated coffee procurement and telemetry agent for Cymbal Coffee Roasters"
+
+      - name: Ensure ALL_USERS Sharing Scope in Gemini Enterprise
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+            -H "Content-Type: application/json" \
+            -H "X-Goog-User-Project: 922201496337" \
+            "https://discoveryengine.googleapis.com/v1alpha/projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752/assistants/default_assistant/agents/12977200261735696190?updateMask=sharingConfig" \
+            -d '{"sharingConfig": {"scope": "ALL_USERS"}}'
