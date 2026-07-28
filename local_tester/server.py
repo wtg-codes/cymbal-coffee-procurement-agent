@@ -124,7 +124,7 @@ async def get_agent_card() -> dict:
             "streaming": False,
             "extensions": [
                 {
-                    "uri": "https://a2ui.org/a2a-extension/a2ui/v0.8",
+                    "uri": f"https://a2ui.org/a2a-extension/a2ui/v{A2UI_VERSION}",
                     "description": "A2UI rendering support",
                     "required": False,
                 }

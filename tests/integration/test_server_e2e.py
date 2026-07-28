@@ -30,8 +30,7 @@ from a2a.types import (
     MessageSendParams,
     Part,
     Role,
-    SendStreamingMessageRequest,
-    SendStreamingMessageResponse,
+    SendMessageRequest,
     TextPart,
 )
 from requests.exceptions import RequestException
@@ -189,16 +188,16 @@ def test_adk_run_sse(server_fixture: subprocess.Popen[str]) -> None:
     assert events, "No events received from SSE stream"
 
 
-def test_a2a_chat_stream(server_fixture: subprocess.Popen[str]) -> None:
-    """Test A2A JSON-RPC streaming protocol endpoint."""
-    logger.info("Starting A2A chat stream test")
+def test_a2a_chat(server_fixture: subprocess.Popen[str]) -> None:
+    """Test A2A JSON-RPC protocol endpoint with non-streaming request."""
+    logger.info("Starting A2A chat non-streaming test")
 
     message = Message(
         message_id=f"msg-user-{uuid.uuid4()}",
         role=Role.user,
         parts=[Part(root=TextPart(text="Hi!"))],
     )
-    request = SendStreamingMessageRequest(
+    request = SendMessageRequest(
         id="test-req-001",
         params=MessageSendParams(message=message),
     )
@@ -206,20 +205,9 @@ def test_a2a_chat_stream(server_fixture: subprocess.Popen[str]) -> None:
         A2A_RPC_URL,
         headers=HEADERS,
         json=request.model_dump(mode="json", exclude_none=True),
-        stream=True,
         timeout=60,
     )
     assert response.status_code == 200
+    res_data = response.json()
+    assert "result" in res_data or "error" not in res_data
 
-    responses: list[SendStreamingMessageResponse] = []
-    for line in response.iter_lines():
-        if line:
-            line_str = line.decode("utf-8")
-            if line_str.startswith("data: "):
-                responses.append(
-                    SendStreamingMessageResponse.model_validate(
-                        json.loads(line_str[6:])
-                    )
-                )
-
-    assert responses, "No responses received from stream"

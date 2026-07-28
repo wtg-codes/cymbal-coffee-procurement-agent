@@ -1,4 +1,5 @@
 import os
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -7,7 +8,7 @@ os.environ["GCP_PROJECT"] = "hackathon-y26"
 
 from fastapi.testclient import TestClient
 
-from app.fast_api_app import app
+from app.fast_api_app import _resolve_app_url, app
 
 client = TestClient(app)
 
@@ -84,6 +85,37 @@ def test_app_title():
 def test_app_description():
     """App description should reference the agent."""
     assert "cymbal-coffee-procurement-agent" in app.description
+
+
+def test_resolve_app_url_prefers_environment(monkeypatch):
+    request = MagicMock()
+    monkeypatch.setenv("APP_URL", "https://configured.example/")
+
+    assert _resolve_app_url(request) == "https://configured.example"
+
+
+def test_resolve_app_url_uses_cloud_run_request_host(monkeypatch):
+    request = MagicMock()
+    request.headers = {
+        "host": "service-hash-uc.a.run.app",
+        "x-forwarded-proto": "https",
+    }
+    request.url.scheme = "http"
+    monkeypatch.delenv("APP_URL", raising=False)
+    monkeypatch.setenv("K_SERVICE", "service")
+    monkeypatch.setenv("K_REVISION", "service-00001-abc")
+
+    assert _resolve_app_url(request) == "https://service-hash-uc.a.run.app"
+
+
+def test_resolve_app_url_uses_request_base_url(monkeypatch):
+    request = MagicMock()
+    request.base_url = "http://localhost:8000/"
+    monkeypatch.delenv("APP_URL", raising=False)
+    monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.delenv("K_REVISION", raising=False)
+
+    assert _resolve_app_url(request) == "http://localhost:8000"
 
 
 @pytest.mark.asyncio

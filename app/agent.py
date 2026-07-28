@@ -3,6 +3,7 @@
 
 import json
 import logging
+import os
 import re
 
 logger = logging.getLogger(__name__)
@@ -14,7 +15,11 @@ from google.adk.models import Gemini
 from google.adk.models.llm_response import LlmResponse
 from google.genai import types
 
-from app.a2ui_config import a2ui_system_prompt
+from app.a2ui_config import (
+    a2ui_system_prompt,
+    build_v09_surface,
+    normalize_a2ui_messages,
+)
 
 
 def _strip_non_latin1(obj):
@@ -69,7 +74,15 @@ def _wrap_a2ui_part(a2ui_message: dict) -> types.Part:
 def extract_a2ui_messages(data):
     """Recursively find any wire-protocol dicts in data."""
     messages = []
-    a2ui_keys = {"beginRendering", "surfaceUpdate", "dataModelUpdate", "deleteSurface"}
+    a2ui_keys = {
+        "beginRendering",
+        "surfaceUpdate",
+        "dataModelUpdate",
+        "deleteSurface",
+        "createSurface",
+        "updateComponents",
+        "updateDataModel",
+    }
 
     def _walk(obj):
         if isinstance(obj, dict):
@@ -171,17 +184,14 @@ def a2ui_callback(
             first_id = valid_comps[0].get("id") or "card"
             root_id = root_ids[0] if root_ids else first_id
 
-            components = []
-            for idx, c in enumerate(valid_comps):
-                comp_id = c.get("id") or f"c_{idx}"
-                comp_type = c.get("type") or "Text"
-                props = {k: v for k, v in c.items() if k not in ("id", "type")}
-                components.append({"id": comp_id, "component": {comp_type: props}})
+            a2ui_messages = build_v09_surface(
+                "default",
+                valid_comps,
+                root_id=root_id,
+            )
 
-            a2ui_messages = [
-                {"beginRendering": {"surfaceId": "default", "root": root_id}},
-                {"surfaceUpdate": {"surfaceId": "default", "components": components}},
-            ]
+        if a2ui_messages:
+            a2ui_messages = normalize_a2ui_messages(a2ui_messages)
 
         if not a2ui_messages:
             from app.a2ui_generator import get_scenario_card
@@ -238,7 +248,7 @@ root_agent = Agent(
     name="cymbal_coffee_procurement_agent",
     description="Intelligent procurement and inventory agent for Cymbal Coffee Roasters.",
     model=Gemini(
-        model="gemini-flash-latest",
+        model=os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
         retry_options=types.HttpRetryOptions(attempts=3),
     ),
     instruction=a2ui_system_prompt,
