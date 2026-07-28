@@ -87,6 +87,31 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         event_queue: events.EventQueue,
     ) -> None:
         query = context.get_user_input()
+
+        # Extract userAction from incoming A2A message DataParts if present
+        try:
+            if hasattr(context, "message") and context.message and hasattr(context.message, "parts"):
+                for part in context.message.parts:
+                    data_part = getattr(part, "root", part)
+                    if hasattr(data_part, "data") and data_part.data:
+                        data = data_part.data
+                        if isinstance(data, dict):
+                            user_action = data.get("userAction", {})
+                            action_context = user_action.get("context", {})
+                            msg = None
+                            if isinstance(action_context, dict):
+                                msg = action_context.get("message") or action_context.get("query")
+                            elif isinstance(action_context, list):
+                                for item in action_context:
+                                    if isinstance(item, dict) and item.get("key") in ("message", "query"):
+                                        val = item.get("value")
+                                        msg = val.get("literalString") if isinstance(val, dict) else str(val)
+                            if msg:
+                                query = msg
+                                logger.info("Extracted A2UI userAction message: %s", query)
+        except Exception as ex:
+            logger.warning("Failed to parse userAction context: %s", ex)
+
         task = context.current_task
 
         if not task:
@@ -114,6 +139,7 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         await updater.start_work()
 
         content = genai_types.Content(role="user", parts=[{"text": query}])
+
 
         text_chunks: list[str] = []
         data_parts: list[types.Part] = []
@@ -181,9 +207,19 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         a2a_parts.extend(data_parts)
 
         # Fallback if no inline_data DataParts were captured
-        if not data_parts and text_chunks:
-            from app.a2ui_config import format_a2ui_parts
-            a2a_parts = format_a2ui_parts("\n\n".join(text_chunks))
+        if not data_parts:
+            from app.a2ui_generator import get_scenario_card
+            scenario_msgs = get_scenario_card(query=query, text="\n\n".join(text_chunks))
+            for msg in scenario_msgs:
+                a2a_parts.append(
+                    types.Part(
+                        root=types.DataPart(
+                            data=msg,
+                            metadata={"mimeType": "application/json+a2ui"},
+                        )
+                    )
+                )
+
 
         if not a2a_parts:
             await updater.failed(
