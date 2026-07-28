@@ -85,7 +85,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "val1",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[██░░░░░░░░] 6.2% CRITICAL"},
+                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -112,7 +112,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "val2",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[████░░░░░░] 14.7% CRITICAL"},
+                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -139,7 +139,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "val3",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[████░░░░░░] 14.1% CRITICAL"},
+                                "text": {"literalString": "[====......] 14.1% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -505,7 +505,7 @@ def build_consumption_analysis_card(
                     {
                         "id": "val_stock",
                         "component": {
-                            "Text": {"text": {"literalString": f"{stock} [██░░░░░░░░]"}, "usageHint": "body"}
+                            "Text": {"text": {"literalString": f"{stock} [==........]"}, "usageHint": "body"}
                         },
                     },
                     {
@@ -889,7 +889,7 @@ def build_visual_chart_card(
                         "id": "val_oat",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[██░░░░░░░░] 6.2% CRITICAL"},
+                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -916,7 +916,7 @@ def build_visual_chart_card(
                         "id": "val_esp",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[████░░░░░░] 14.7% CRITICAL"},
+                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -943,7 +943,7 @@ def build_visual_chart_card(
                         "id": "val_dark",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[████████░░] 23.0% WARNING"},
+                                "text": {"literalString": "[========..] 23.0% WARNING"},
                                 "usageHint": "body",
                             }
                         },
@@ -967,7 +967,7 @@ def build_visual_chart_card(
                         "id": "val_milk",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[██████████] 88.5% HEALTHY"},
+                                "text": {"literalString": "[==========] 88.5% HEALTHY"},
                                 "usageHint": "body",
                             }
                         },

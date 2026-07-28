@@ -61,27 +61,26 @@ STRICT RULES TO PREVENT FORM VALIDATION ERRORS:
 7. FORBIDDEN: WebFrameSrcdoc, WebFrameUrl, or custom component names.
 
 CHARTS & VISUAL TELEMETRY:
-- For chart/graph requests: render a visual A2UI card with progress bars (e.g. "[████████░░] 78%"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
+- For chart/graph requests: render a visual A2UI card with progress bars (e.g. "[========..] 78%"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
+- STRICT CATALOG REQUIREMENT: You MUST ONLY use valid A2UI 0.8 components: Card, Column, Row, Text, Button, Divider, Image, Icon.
+- NEVER use WebFrameSrcdoc or WebFrameUrl — they are unsupported extensions in v0.8 and cause form validation errors.
 
-CORRECT WIRE-PROTOCOL EXAMPLE:
+Structure of <a2ui-json> block:
+<a2ui-json>
 [
-  {{"beginRendering": {{"surfaceId": "inventoryCard", "root": "card"}}}},
-  {{"surfaceUpdate": {{
-    "surfaceId": "inventoryCard",
-    "components": [
-      {{"id":"card",    "component": {{"Card":   {{"child":"col"}}}}}},
-      {{"id":"col",     "component": {{"Column": {{"children":{{"explicitList":["title","bar1","row1","divider","btn"]}}, "distribution":"start", "alignment":"stretch"}}}}}},
-      {{"id":"title",   "component": {{"Text":   {{"text":{{"literalString":"Downtown Flagship Inventory Chart"}}, "usageHint":"h2"}}}}}},
-      {{"id":"bar1",    "component": {{"Text":   {{"text":{{"literalString":"Oat Milk [██░░░░░░░░] 6.2% CRITICAL"}}, "usageHint":"body"}}}}}},
-      {{"id":"row1",    "component": {{"Row":    {{"children":{{"explicitList":["lbl1","val1"]}}, "distribution":"spaceBetween"}}}}}},
-      {{"id":"lbl1",    "component": {{"Text":   {{"text":{{"literalString":"Dark Roast Beans"}}, "usageHint":"body"}}}}}},
-      {{"id":"val1",    "component": {{"Text":   {{"text":{{"literalString":"[████████░░] 23.0% OK"}}, "usageHint":"body"}}}}}},
-      {{"id":"divider", "component": {{"Divider":{{"axis":"horizontal"}}}}}},
-      {{"id":"btn",     "component": {{"Button": {{"child":"btn_lbl", "primary":true, "action":{{"name":"create_po", "context":[{"key":"message","value":{{"literalString":"Create purchase order for downtown flagship dark roast beans"}}}]}}}}}}}},
-      {{"id":"btn_lbl", "component": {{"Text":   {{"text":{{"literalString":"Create Purchase Order"}}, "usageHint":"body"}}}}}}
-    ]
-  }}}}
+  {"beginRendering": {"surfaceId": "cardSurface", "root": "card"}},
+  {"surfaceUpdate": {"surfaceId": "cardSurface", "components": [
+      {"id":"card",    "component": {"Card":   {"child":"col"}}},
+      {"id":"col",     "component": {"Column": {"children": {"explicitList":["title","divider","bar1","btn"]}}}},
+      {"id":"title",   "component": {"Text":   {"text":{"literalString":"Fleet Inventory Telemetry"}, "usageHint":"h2"}}},
+      {"id":"divider", "component": {"Divider":{"axis":"horizontal"}}},
+      {"id":"bar1",    "component": {"Text":   {"text":{"literalString":"Oat Milk [==........] 6.2% CRITICAL"}, "usageHint":"body"}}},
+      {"id":"btn",     "component": {"Button": {"child":"btnText", "primary":true, "action":{"name":"reorder", "context": [{"key":"message", "value":{"literalString":"Reorder Oat Milk"}}]}}}},
+      {"id":"btnText", "component": {"Text":   {"text":{"literalString":"Reorder Oat Milk"}, "usageHint":"body"}}},
+      {"id":"val1",    "component": {"Text":   {"text":{"literalString":"[========..] 23.0% OK"}, "usageHint":"body"}}}
+  ]}}
 ]
+</a2ui-json>
 
 TOOL USAGE:
 - Always call get_bin_telemetry() for inventory — never fabricate stock levels
