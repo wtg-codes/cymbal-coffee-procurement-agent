@@ -3,7 +3,11 @@
 import datetime
 from typing import Any
 
-from app.database import get_all_stores_telemetry, insert_purchase_order, get_purchase_orders
+from app.database import (
+    get_all_stores_telemetry,
+    get_purchase_orders,
+    insert_purchase_order,
+)
 
 SUPPLIER_CATALOG = {
     "cymbal-roasters": {

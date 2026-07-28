@@ -4,6 +4,7 @@ import datetime
 import os
 import urllib.request
 from typing import Any
+
 from app.database import get_all_stores_telemetry, update_sensor_level
 
 CLOUD_RUN_DASHBOARD_URL = os.getenv(
@@ -61,7 +62,6 @@ def tick_simulation() -> None:
 
     # Gradual morning consumption curve per store
     # Downtown Flagship (#101) - Heavy morning rush
-    all_stores = get_all_stores_telemetry()
     depletion_amount = min(75.0, round(simulated_minutes * 0.35, 1))
 
     new_df_beans = max(8.0, round(82.0 - depletion_amount, 1))
@@ -178,7 +178,7 @@ def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[s
                 _HEALTH_CACHE["data"] = res_data
                 _HEALTH_CACHE["expires_at"] = now + 30.0  # Cache for 30s
                 return res_data
-    except Exception as e:
+    except Exception:
         pass
 
     # Fallback status if offline

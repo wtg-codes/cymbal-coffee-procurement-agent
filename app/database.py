@@ -347,7 +347,7 @@ def get_all_stores_telemetry() -> dict[str, dict[str, Any]]:
             items = conn.execute(
                 "SELECT * FROM inventory_items WHERE store_id = ?", (store_id,)
             ).fetchall()
-            
+
             bins = {}
             has_critical = False
             has_warning = False
@@ -452,7 +452,7 @@ def insert_purchase_order(po_data: dict[str, Any]) -> dict[str, Any]:
     with get_connection() as conn:
         po_number = po_data.get("po_number") or f"PO-CYMBAL-{random.randint(1000, 9999)}"
         created_at = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        
+
         conn.execute(
             """
             INSERT OR REPLACE INTO purchase_orders (
