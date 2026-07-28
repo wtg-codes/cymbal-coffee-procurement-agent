@@ -17,6 +17,7 @@
             --accent-emerald: #10b981;
             --accent-rose: #f43f5e;
             --accent-cyan: #06b6d4;
+            --accent-purple: #8b5cf6;
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
             --glass-glow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
@@ -43,7 +44,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 2.5rem;
+            margin-bottom: 2rem;
             padding-bottom: 1.5rem;
             border-bottom: 1px solid var(--card-border);
         }
@@ -55,15 +56,15 @@
         }
 
         .logo-icon {
-            width: 48px;
-            height: 48px;
+            width: 52px;
+            height: 52px;
             background: linear-gradient(135deg, var(--accent-amber), var(--accent-orange));
-            border-radius: 14px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 1.5rem;
-            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.3);
+            font-size: 1.6rem;
+            box-shadow: 0 4px 20px rgba(245, 158, 11, 0.35);
         }
 
         h1 {
@@ -108,6 +109,161 @@
             100% { opacity: 1; transform: scale(1); }
         }
 
+        /* Top Unified Overview Panel */
+        .unified-overview {
+            margin-bottom: 2rem;
+        }
+
+        .section-heading {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #f8fafc;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--card-border);
+            border-radius: 16px;
+            padding: 1.2rem;
+            box-shadow: var(--glass-glow);
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: var(--accent-amber);
+        }
+
+        .kpi-card.cyan::before { background: var(--accent-cyan); }
+        .kpi-card.emerald::before { background: var(--accent-emerald); }
+        .kpi-card.rose::before { background: var(--accent-rose); }
+        .kpi-card.purple::before { background: var(--accent-purple); }
+
+        .kpi-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .kpi-val {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .kpi-sub {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+        }
+
+        /* Stores Quick Status Strip */
+        .store-summary-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 0.8rem;
+        }
+
+        .summary-pill {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 0.8rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .summary-pill:hover, .summary-pill.active {
+            background: rgba(245, 158, 11, 0.12);
+            border-color: var(--accent-amber);
+            transform: translateY(-2px);
+        }
+
+        .summary-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        .summary-count {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+        }
+
+        /* Navigation Tabs */
+        .location-tabs-nav {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .tab-btn {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: var(--text-muted);
+            padding: 0.7rem 1.4rem;
+            border-radius: 12px;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .tab-btn.active {
+            color: #ffffff;
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(234, 88, 12, 0.3));
+            border-color: var(--accent-amber);
+            box-shadow: 0 4px 15px rgba(245, 158, 11, 0.2);
+        }
+
+        .tab-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.45rem;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--accent-amber);
+        }
+
         .grid-layout {
             display: grid;
             grid-template-columns: 2fr 1fr;
@@ -147,9 +303,10 @@
 
         .store-section {
             background: rgba(0, 0, 0, 0.2);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 1.2rem;
-            border: 1px solid rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            transition: all 0.3s ease;
         }
 
         .store-header {
@@ -160,8 +317,8 @@
         }
 
         .store-name {
-            font-weight: 600;
-            font-size: 1rem;
+            font-weight: 700;
+            font-size: 1.05rem;
             color: var(--text-main);
         }
 
@@ -183,6 +340,12 @@
             padding: 1rem;
             position: relative;
             overflow: hidden;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .bin-card:hover {
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
         .bin-item-name {
@@ -363,141 +526,186 @@
             <div class="logo-icon">☕</div>
             <div>
                 <h1>Cymbal Coffee Roasters</h1>
-                <div class="subtitle">IoT Telemetry & Automated Procurement Simulator</div>
+                <div class="subtitle">Fleet Procurement & Real-Time Telemetry Dashboard</div>
             </div>
         </div>
         <div class="badge-live">
             <div class="pulse-dot"></div>
-            Backend Telemetry Engine Active
+            SQLite Telemetry Engine Active
         </div>
     </div>
 
-    <div class="grid-layout">
-        <!-- Main Column: Store Telemetry & POs -->
-        <div>
-            <div class="card">
-                <div class="card-title">
-                    <span>📡 Live Store Telemetry Bins</span>
-                    <button class="btn-action btn-secondary" onclick="resetTelemetry()" style="width: auto; margin:0;">🔄 Reset Defaults</button>
-                </div>
-                <div id="storesContainer" class="stores-container">
-                    <!-- Loaded dynamically -->
-                </div>
-            </div>
+    <!-- TOP SECTION: UNIFIED FLEET OVERVIEW -->
+    <div class="unified-overview">
+        <div class="section-heading">
+            <span>🌐 Unified Fleet Operations Overview</span>
+        </div>
 
-            <div class="card">
-                <div class="card-title">
-                    <span>📦 Generated Purchase Orders (POs)</span>
-                </div>
-                <table class="po-table">
-                    <thead>
-                        <tr>
-                            <th>PO #</th>
-                            <th>Store</th>
-                            <th>Item</th>
-                            <th>Qty</th>
-                            <th>Total ($)</th>
-                            <th>Urgency</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody id="poTableBody">
-                        <tr>
-                            <td colspan="7" style="text-align: center; color: var(--text-muted);">No Purchase Orders generated yet. Use the GE Agent or simulator below!</td>
-                        </tr>
-                    </tbody>
-                </table>
+        <div class="kpi-grid">
+            <div class="kpi-card amber">
+                <div class="kpi-label">Active Store Locations</div>
+                <div id="kpiTotalStores" class="kpi-val">5</div>
+                <div class="kpi-sub">San Francisco Bay Area Region</div>
+            </div>
+            <div class="kpi-card cyan">
+                <div class="kpi-label">Total Installed Sensors</div>
+                <div id="kpiTotalSensors" class="kpi-val">45</div>
+                <div class="kpi-sub">9 IoT Bins & Tanks Per Store</div>
+            </div>
+            <div class="kpi-card rose">
+                <div class="kpi-label">Critical / Stockout Alerts</div>
+                <div id="kpiAlertCount" class="kpi-val">0</div>
+                <div class="kpi-sub">Requires Expedited PO Action</div>
+            </div>
+            <div class="kpi-card purple">
+                <div class="kpi-label">Active Purchase Orders</div>
+                <div id="kpiPoCount" class="kpi-val">0</div>
+                <div id="kpiPoSpend" class="kpi-sub">$0.00 Total Spend</div>
             </div>
         </div>
 
-        <!-- Side Column: Sensor Controls & GE Prompts -->
-        <div>
-            <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: linear-gradient(135deg, rgba(22, 28, 45, 0.9), rgba(245, 158, 11, 0.08));">
-                <div class="card-title">
-                    <span>🚀 Synthetic Demo Simulation</span>
-                    <span id="simStatusTag" class="bin-status-tag tag-optimal">STANDBY</span>
+        <!-- Quick Store Health Strip -->
+        <div id="storeSummaryStrip" class="store-summary-strip">
+            <!-- Dynamically populated -->
+        </div>
+    </div>
+
+    <!-- BOTTOM SECTION: LOCATION TABS & TELEMETRY -->
+    <div>
+        <div class="section-heading" style="justify-content: space-between;">
+            <span>📍 Location Sensor Telemetry</span>
+            <button class="btn-action btn-secondary" onclick="resetTelemetry()" style="width: auto; margin:0; padding: 0.4rem 0.8rem; font-size: 0.8rem;">🔄 Reset Defaults</button>
+        </div>
+
+        <!-- Navigation Location Tabs -->
+        <div id="locationTabsNav" class="location-tabs-nav">
+            <button class="tab-btn active" data-tab="all" onclick="selectTab('all')">
+                <span>🏢 All Locations (Fleet)</span>
+                <span class="tab-badge" id="badgeTabAll">5 Stores</span>
+            </button>
+            <!-- Store tabs dynamically added -->
+        </div>
+
+        <div class="grid-layout">
+            <!-- Main Column: Store Telemetry & POs -->
+            <div>
+                <div id="storesContainer" class="stores-container">
+                    <!-- Loaded dynamically -->
                 </div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                    Activate the synthetic IoT telemetry backend for live demonstrations (auto-timeout in 2 hours max):
-                </p>
 
-                <div id="simTimerDisplay" style="display: none; background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 10px; margin-bottom: 1rem; text-align: center;">
-                    <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Remaining Session Time (Max 2h)</div>
-                    <div id="countdownTimer" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-amber);">02:00:00</div>
+                <div class="card" style="margin-top: 1.5rem;">
+                    <div class="card-title">
+                        <span>📦 Generated Purchase Orders (POs)</span>
+                    </div>
+                    <table class="po-table">
+                        <thead>
+                            <tr>
+                                <th>PO #</th>
+                                <th>Store</th>
+                                <th>Item</th>
+                                <th>Qty</th>
+                                <th>Total ($)</th>
+                                <th>Urgency</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="poTableBody">
+                            <tr>
+                                <td colspan="7" style="text-align: center; color: var(--text-muted);">No Purchase Orders generated yet. Use the GE Agent or simulator below!</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-
-                <button id="btnStartSim" class="btn-action" style="font-size: 0.95rem; padding: 0.8rem;" onclick="startSimulation()">
-                    ▶️ Start 2-Hour Demo Session
-                </button>
-
-                <button id="btnStopSim" class="btn-action btn-danger" style="display: none; font-size: 0.85rem; margin-top: 0.5rem;" onclick="stopSimulation()">
-                    ⏹️ Stop Demo Session
-                </button>
             </div>
 
-            <!-- Dynamic Morning Rush Stream Log Card -->
-            <div id="orderLogCard" class="card" style="display: none;">
-                <div class="card-title">
-                    <span>☕ Morning Order Stream (6:30 AM Rush)</span>
-                    <span id="orderCountBadge" class="bin-status-tag tag-optimal">0 orders</span>
-                </div>
-                <div id="orderLogList" style="max-height: 180px; overflow-y: auto; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 0.3rem;">
-                    <!-- Dynamically populated -->
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">⚡ Instant Sensor Event Injector</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                    Simulate real-world stock depletion or hardware anomalies to trigger agent workflows:
-                </p>
-
-                <button class="btn-action btn-danger" onclick="simulateEvent('downtown-flagship', 'dark-roast-beans', 12.0)">
-                    🚨 Trigger Critical Bean Stock (12% SF)
-                </button>
-
-                <button class="btn-action btn-danger" onclick="simulateEvent('airport-express', 'dark-roast-beans', 8.0)">
-                    🚨 Trigger Stockout Warning (8% SFO)
-                </button>
-
-                <button class="btn-action" onclick="simulateEvent('downtown-flagship', 'oat-milk', 15.0)">
-                    🥛 Low Oat Milk Telemetry (15% SF)
-                </button>
-
-                <button class="btn-action btn-secondary" onclick="createDemoPO()" style="margin-top: 1rem;">
-                    📝 Manually Generate Test PO
-                </button>
-            </div>
-
-
-            <div class="card">
-                <div class="card-title">💡 Gemini Enterprise Test Prompts</div>
-                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
-                    Click any prompt to copy it for testing in Gemini Enterprise:
-                </p>
-
-                <div class="prompt-box" onclick="copyPrompt(this)">
-                    <div class="prompt-title">
-                        <span>1. Inventory Health Overview</span>
-                        <span>📋 Copy</span>
+            <!-- Side Column: Sensor Controls & GE Prompts -->
+            <div>
+                <div class="card" style="border: 1px solid rgba(245, 158, 11, 0.4); background: linear-gradient(135deg, rgba(22, 28, 45, 0.9), rgba(245, 158, 11, 0.08));">
+                    <div class="card-title">
+                        <span>🚀 Synthetic Demo Simulation</span>
+                        <span id="simStatusTag" class="bin-status-tag tag-optimal">STANDBY</span>
                     </div>
-                    <div class="prompt-text">"Check current bean and milk inventory telemetry for all stores and alert me if any levels are critical."</div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Activate the synthetic IoT telemetry backend for live demonstrations (auto-timeout in 2 hours max):
+                    </p>
+
+                    <div id="simTimerDisplay" style="display: none; background: rgba(0,0,0,0.3); padding: 0.8rem; border-radius: 10px; margin-bottom: 1rem; text-align: center;">
+                        <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Remaining Session Time (Max 2h)</div>
+                        <div id="countdownTimer" style="font-family: 'JetBrains Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--accent-amber);">02:00:00</div>
+                    </div>
+
+                    <button id="btnStartSim" class="btn-action" style="font-size: 0.95rem; padding: 0.8rem;" onclick="startSimulation()">
+                        ▶️ Start 2-Hour Demo Session
+                    </button>
+
+                    <button id="btnStopSim" class="btn-action btn-danger" style="display: none; font-size: 0.85rem; margin-top: 0.5rem;" onclick="stopSimulation()">
+                        ⏹️ Stop Demo Session
+                    </button>
                 </div>
 
-                <div class="prompt-box" onclick="copyPrompt(this)">
-                    <div class="prompt-title">
-                        <span>2. Automated Reorder</span>
-                        <span>📋 Copy</span>
+                <!-- Dynamic Morning Rush Stream Log Card -->
+                <div id="orderLogCard" class="card" style="display: none;">
+                    <div class="card-title">
+                        <span>☕ Morning Order Stream (6:30 AM Rush)</span>
+                        <span id="orderCountBadge" class="bin-status-tag tag-optimal">0 orders</span>
                     </div>
-                    <div class="prompt-text">"Analyze consumption velocity for Dark Roast Beans at Downtown Flagship and create an expedited purchase order."</div>
+                    <div id="orderLogList" style="max-height: 180px; overflow-y: auto; font-size: 0.8rem; font-family: 'JetBrains Mono', monospace; display: flex; flex-direction: column; gap: 0.4rem; padding-right: 0.3rem;">
+                        <!-- Dynamically populated -->
+                    </div>
                 </div>
 
-                <div class="prompt-box" onclick="copyPrompt(this)">
-                    <div class="prompt-title">
-                        <span>3. Equipment Anomaly Scan</span>
-                        <span>📋 Copy</span>
+                <div class="card">
+                    <div class="card-title">⚡ Instant Sensor Event Injector</div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Simulate real-world stock depletion or hardware anomalies to trigger agent workflows:
+                    </p>
+
+                    <button class="btn-action btn-danger" onclick="simulateEvent('downtown-flagship', 'dark-roast-beans', 12.0)">
+                        🚨 Trigger Critical Bean Stock (12% SF)
+                    </button>
+
+                    <button class="btn-action btn-danger" onclick="simulateEvent('airport-express', 'dark-roast-beans', 8.0)">
+                        🚨 Trigger Stockout Warning (8% SFO)
+                    </button>
+
+                    <button class="btn-action" onclick="simulateEvent('downtown-flagship', 'oat-milk', 15.0)">
+                        🥛 Low Oat Milk Telemetry (15% SF)
+                    </button>
+
+                    <button class="btn-action btn-secondary" onclick="createDemoPO()" style="margin-top: 1rem;">
+                        📝 Manually Generate Test PO
+                    </button>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">💡 Gemini Enterprise Test Prompts</div>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 1rem;">
+                        Click any prompt to copy it for testing in Gemini Enterprise:
+                    </p>
+
+                    <div class="prompt-box" onclick="copyPrompt(this)">
+                        <div class="prompt-title">
+                            <span>1. Inventory Health Overview</span>
+                            <span>📋 Copy</span>
+                        </div>
+                        <div class="prompt-text">"Check current bean and milk inventory telemetry for all stores and alert me if any levels are critical."</div>
                     </div>
-                    <div class="prompt-text">"Run a diagnostic check for equipment anomalies and temperature spikes at SFO Terminal 2."</div>
+
+                    <div class="prompt-box" onclick="copyPrompt(this)">
+                        <div class="prompt-title">
+                            <span>2. Automated Reorder</span>
+                            <span>📋 Copy</span>
+                        </div>
+                        <div class="prompt-text">"Analyze consumption velocity for Dark Roast Beans at Downtown Flagship and create an expedited purchase order."</div>
+                    </div>
+
+                    <div class="prompt-box" onclick="copyPrompt(this)">
+                        <div class="prompt-title">
+                            <span>3. Equipment Anomaly Scan</span>
+                            <span>📋 Copy</span>
+                        </div>
+                        <div class="prompt-text">"Run a diagnostic check for equipment anomalies and temperature spikes at SFO Terminal 2."</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -506,15 +714,140 @@
     <div id="copyToast" class="copy-toast">Prompt copied to clipboard!</div>
 
     <script>
+        let currentTab = 'all';
+        let latestStoresData = {};
+
         async function fetchTelemetry() {
             try {
                 const res = await fetch('/api/dashboard/data');
                 const data = await res.json();
+                latestStoresData = data.stores;
+                updateOverviewKPIs(data.stores, data.purchase_orders);
+                renderTabs(data.stores);
                 renderStores(data.stores);
                 renderPOs(data.purchase_orders);
                 updateSimUI(data.simulation);
             } catch (err) {
                 console.error("Error fetching telemetry:", err);
+            }
+        }
+
+        function updateOverviewKPIs(stores, pos) {
+            let totalStores = Object.keys(stores).length;
+            let totalSensors = 0;
+            let totalAlerts = 0;
+
+            for (const store of Object.values(stores)) {
+                for (const bin of Object.values(store.bins)) {
+                    totalSensors++;
+                    if (bin.status === 'CRITICAL' || bin.status === 'WARNING') {
+                        totalAlerts++;
+                    }
+                }
+            }
+
+            document.getElementById('kpiTotalStores').innerText = totalStores;
+            document.getElementById('kpiTotalSensors').innerText = totalSensors;
+            document.getElementById('kpiAlertCount').innerText = totalAlerts;
+
+            const totalPos = pos ? pos.length : 0;
+            document.getElementById('kpiPoCount').innerText = totalPos;
+            const totalSpend = pos ? pos.reduce((acc, p) => acc + (p.total_cost_usd || 0), 0) : 0;
+            document.getElementById('kpiPoSpend').innerText = `$${totalSpend.toFixed(2)} Total Spend`;
+
+            // Render summary strip
+            const strip = document.getElementById('storeSummaryStrip');
+            strip.innerHTML = Object.entries(stores).map(([sId, store]) => {
+                const alertBins = Object.values(store.bins).filter(b => b.status !== 'OPTIMAL').length;
+                const statusTagClass = store.status === 'CRITICAL' ? 'tag-critical' : (store.status === 'WARNING' ? 'tag-warning' : 'tag-optimal');
+                const isSelected = currentTab === sId ? 'active' : '';
+
+                return `
+                    <div class="summary-pill ${isSelected}" onclick="selectTab('${sId}')">
+                        <div>
+                            <div class="summary-name">${store.store_name}</div>
+                            <div style="font-size: 0.75rem; color: var(--text-muted);">${Object.keys(store.bins).length} Bins Active</div>
+                        </div>
+                        <span class="bin-status-tag ${statusTagClass}">${store.status}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderTabs(stores) {
+            const tabsNav = document.getElementById('locationTabsNav');
+            
+            // Retain 'all' tab button, update dynamically
+            let html = `
+                <button class="tab-btn ${currentTab === 'all' ? 'active' : ''}" onclick="selectTab('all')">
+                    <span>🏢 All Locations (Fleet)</span>
+                    <span class="tab-badge">${Object.keys(stores).length} Stores</span>
+                </button>
+            `;
+
+            for (const [storeId, store] of Object.entries(stores)) {
+                const isActive = currentTab === storeId ? 'active' : '';
+                const alertCount = Object.values(store.bins).filter(b => b.status !== 'OPTIMAL').length;
+                const alertBadge = alertCount > 0 ? ` <span class="tab-badge" style="background: rgba(244, 63, 94, 0.4); color: #fff;">${alertCount} Alerts</span>` : '';
+
+                html += `
+                    <button class="tab-btn ${isActive}" onclick="selectTab('${storeId}')">
+                        <span>📍 ${store.store_name}</span>
+                        ${alertBadge}
+                    </button>
+                `;
+            }
+
+            tabsNav.innerHTML = html;
+        }
+
+        function selectTab(tabId) {
+            currentTab = tabId;
+            renderTabs(latestStoresData);
+            renderStores(latestStoresData);
+        }
+
+        function renderStores(stores) {
+            const container = document.getElementById('storesContainer');
+            container.innerHTML = '';
+
+            for (const [storeId, store] of Object.entries(stores)) {
+                if (currentTab !== 'all' && currentTab !== storeId) {
+                    continue;
+                }
+
+                const section = document.createElement('div');
+                section.className = 'store-section';
+
+                let binsHtml = '';
+                for (const [itemKey, bin] of Object.entries(store.bins)) {
+                    const statusClass = bin.status === 'OPTIMAL' ? 'optimal' : (bin.status === 'WARNING' ? 'warning' : 'critical');
+                    binsHtml += `
+                        <div class="bin-card">
+                            <div class="bin-item-name">${bin.item_name}</div>
+                            <div class="bin-id">${bin.bin_id} • ${bin.temp_celsius}°C</div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill status-${statusClass}" style="width: ${bin.level_percent}%"></div>
+                            </div>
+                            <div class="bin-meta">
+                                <span>${bin.current_weight_kg}kg / ${bin.max_capacity_kg}kg (${bin.level_percent}%)</span>
+                                <span class="bin-status-tag tag-${statusClass}">${bin.status}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+
+                section.innerHTML = `
+                    <div class="store-header">
+                        <div>
+                            <div class="store-name">${store.store_name}</div>
+                            <div class="store-location">${store.address}, ${store.city}</div>
+                        </div>
+                        <span class="bin-status-tag tag-${store.status.toLowerCase()}">${store.status}</span>
+                    </div>
+                    <div class="bin-grid">${binsHtml}</div>
+                `;
+                container.appendChild(section);
             }
         }
 
@@ -575,46 +908,6 @@
         async function stopSimulation() {
             await fetch('/api/dashboard/simulation/stop', { method: 'POST' });
             fetchTelemetry();
-        }
-
-
-        function renderStores(stores) {
-            const container = document.getElementById('storesContainer');
-            container.innerHTML = '';
-
-            for (const [storeId, store] of Object.entries(stores)) {
-                const section = document.createElement('div');
-                section.className = 'store-section';
-
-                let binsHtml = '';
-                for (const [itemKey, bin] of Object.entries(store.bins)) {
-                    const statusClass = bin.status === 'OPTIMAL' ? 'optimal' : (bin.status === 'WARNING' ? 'warning' : 'critical');
-                    binsHtml += `
-                        <div class="bin-card">
-                            <div class="bin-item-name">${bin.item_name}</div>
-                            <div class="bin-id">${bin.bin_id} • ${bin.temp_celsius}°C</div>
-                            <div class="progress-bar-bg">
-                                <div class="progress-bar-fill status-${statusClass}" style="width: ${bin.level_percent}%"></div>
-                            </div>
-                            <div class="bin-meta">
-                                <span>${bin.current_weight_kg}kg / ${bin.max_capacity_kg}kg (${bin.level_percent}%)</span>
-                                <span class="bin-status-tag tag-${statusClass}">${bin.status}</span>
-                            </div>
-                        </div>
-                    `;
-                }
-
-                section.innerHTML = `
-                    <div class="store-header">
-                        <div>
-                            <div class="store-name">${store.store_name}</div>
-                            <div class="store-location">${store.address}, ${store.city}</div>
-                        </div>
-                    </div>
-                    <div class="bin-grid">${binsHtml}</div>
-                `;
-                container.appendChild(section);
-            }
         }
 
         function renderPOs(pos) {
