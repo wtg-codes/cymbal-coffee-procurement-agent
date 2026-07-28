@@ -9,15 +9,19 @@ from app.tools.procurement import (
     create_purchase_order,
 )
 from app.tools.telemetry import (
+    check_backend_status,
     detect_equipment_anomalies,
+    generate_telemetry_chart,
     get_bin_telemetry,
     simulate_sensor_event,
 )
 
 __all__ = [
     "analyze_consumption_patterns",
+    "check_backend_status",
     "create_purchase_order",
     "detect_equipment_anomalies",
+    "generate_telemetry_chart",
     "get_bin_telemetry",
     "notify_store_manager",
     "send_customer_notification",

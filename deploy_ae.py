@@ -1,9 +1,10 @@
 """Deploy ADK Agent to Vertex AI Agent Engine with A2A Protocol support."""
 
 import os
+
+import vertexai
 from a2a.types import AgentSkill
 from dotenv import load_dotenv
-import vertexai
 from vertexai.preview.reasoning_engines import A2aAgent
 from vertexai.preview.reasoning_engines.templates.a2a import create_agent_card
 

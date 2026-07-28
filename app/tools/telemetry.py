@@ -1,7 +1,14 @@
 # Copyright 2026 Google LLC
 
 import datetime
+import os
+import urllib.request
 from typing import Any
+
+CLOUD_RUN_DASHBOARD_URL = os.getenv(
+    "CLOUD_RUN_DASHBOARD_URL",
+    "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
+)
 
 STORE_TELEMETRY: dict[str, dict[str, Any]] = {
     "downtown-flagship": {
@@ -244,6 +251,45 @@ def get_simulation_status() -> dict[str, Any]:
     }
 
 
+def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
+    """Check if the Cloud Run synthetic telemetry & dashboard backend is online and responding."""
+    health_url = f"{url.rstrip('/')}/health"
+    dashboard_url = f"{url.rstrip('/')}/dashboard"
+    try:
+        req = urllib.request.Request(health_url, headers={"User-Agent": "Cymbal-Procurement-Agent/1.0"})
+        with urllib.request.urlopen(req, timeout=3) as res:
+            if res.status == 200:
+                return {
+                    "is_online": True,
+                    "status": "ONLINE",
+                    "dashboard_url": dashboard_url,
+                    "health_endpoint": health_url,
+                    "http_code": 200,
+                    "message": f"Cloud Run telemetry backend is ONLINE at {dashboard_url}"
+                }
+    except Exception as e:
+        return {
+            "is_online": False,
+            "status": "OFFLINE",
+            "dashboard_url": dashboard_url,
+            "health_endpoint": health_url,
+            "error": str(e),
+            "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is DOWN or unreachable. Please verify/start the Cloud Run service."
+        }
+    return {
+        "is_online": False,
+        "status": "OFFLINE",
+        "dashboard_url": dashboard_url,
+        "health_endpoint": health_url,
+        "user_action_required": f"⚠️ Cloud Run Synthetic Data Backend at {dashboard_url} is unreachable."
+    }
+
+
+def check_backend_status() -> dict[str, Any]:
+    """Check the operational status of the Cloud Run synthetic data backend service."""
+    return check_cloud_run_backend_health()
+
+
 def resolve_store_id(store_id: str) -> str | None:
     """Fuzzy-resolve store_id or store name to internal store key."""
     if not store_id:
@@ -261,6 +307,7 @@ def resolve_store_id(store_id: str) -> str | None:
 def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
     check_simulation_timeout()
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    backend_health = check_cloud_run_backend_health()
 
     if store_id.lower() in ("all", "all-stores"):
         return {
@@ -269,12 +316,13 @@ def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
             "total_stores": len(STORE_TELEMETRY),
             "stores": STORE_TELEMETRY,
             "simulation": get_simulation_status(),
+            "cloud_run_backend": backend_health,
         }
 
     key = resolve_store_id(store_id)
     store = STORE_TELEMETRY.get(key) if key else None
     if not store:
-        return {"error": f"Store ID '{store_id}' not found."}
+        return {"error": f"Store ID '{store_id}' not found.", "cloud_run_backend": backend_health}
 
     return {
         "store_id": key,
@@ -282,14 +330,7 @@ def get_bin_telemetry(store_id: str = "all") -> dict[str, Any]:
         "timestamp": timestamp,
         "bins": store["bins"],
         "simulation": get_simulation_status(),
-    }
-
-    return {
-        "store_id": store_id,
-        "store_name": store["store_name"],
-        "timestamp": timestamp,
-        "bins": store["bins"],
-        "simulation": get_simulation_status(),
+        "cloud_run_backend": backend_health,
     }
 
 
@@ -331,3 +372,169 @@ def detect_equipment_anomalies(store_id: str = "downtown-flagship") -> dict[str,
         "health_status": "ALL_SYSTEMS_HEALTHY",
         "detected_anomalies": [],
     }
+
+
+def _build_svg_bar_chart(items: list[dict[str, Any]]) -> str:
+    svg_height = 140
+    svg_width = 340
+    bar_height = 22
+    gap = 12
+    start_y = 10
+
+    bars_xml = []
+    y = start_y
+    for item in items:
+        percent = item["percent"]
+        bar_w = int((percent / 100.0) * 190)
+        color = item["color"]
+        name = item["name"]
+        if len(name) > 18:
+            name = name[:16] + ".."
+
+        bars_xml.append(
+            f'<text x="5" y="{y + 15}" fill="#cbd5e1" font-size="11" font-weight="500">{name}</text>'
+            f'<rect x="110" y="{y}" width="190" height="{bar_height}" rx="4" fill="#1e293b"/>'
+            f'<rect x="110" y="{y}" width="{bar_w}" height="{bar_height}" rx="4" fill="{color}"/>'
+            f'<text x="{115 + bar_w}" y="{y + 15}" fill="#f8fafc" font-size="11" font-weight="700">{percent}%</text>'
+        )
+        y += bar_height + gap
+
+    return f'<svg width="100%" height="{svg_height}" viewBox="0 0 {svg_width} {svg_height}" xmlns="http://www.w3.org/2000/svg">{"".join(bars_xml)}</svg>'
+
+
+def _build_svg_pie_chart(items: list[dict[str, Any]], is_donut: bool = False) -> str:
+    import math
+
+    r = 45
+    circumference = 2 * math.pi * r  # ~282.74
+    total_val = sum(i["percent"] for i in items) or 1.0
+
+    stroke_w = 26 if is_donut else 46
+    current_offset = 0.0
+    circles = []
+    legend_items = []
+
+    for item in items:
+        percent = item["percent"]
+        fraction = percent / total_val
+        dash_len = fraction * circumference
+        gap_len = circumference - dash_len
+        color = item["color"]
+
+        circles.append(
+            f'<circle cx="75" cy="75" r="{r}" fill="transparent" stroke="{color}" '
+            f'stroke-width="{stroke_w}" stroke-dasharray="{dash_len:.2f} {gap_len:.2f}" '
+            f'stroke-dashoffset="{-current_offset:.2f}"/>'
+        )
+
+        legend_items.append(
+            f'<div class="legend-item"><div class="color-box" style="background:{color};"></div>'
+            f'<span>{item["name"]}: {percent}%</span></div>'
+        )
+
+        current_offset += dash_len
+
+    return f'''<div style="display:flex; align-items:center; gap:20px;">
+      <svg width="150" height="150" viewBox="0 0 150 150" style="transform: rotate(-90deg);" xmlns="http://www.w3.org/2000/svg">
+        {"".join(circles)}
+      </svg>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        {"".join(legend_items)}
+      </div>
+    </div>'''
+
+
+def _build_svg_line_chart(items: list[dict[str, Any]]) -> str:
+    svg_w, svg_h = 320, 120
+    points = [(20, 85), (70, 70), (120, 35), (170, 55), (220, 20), (270, 10)]
+    pts_str = " ".join(f"{x},{y}" for x, y in points)
+
+    circles = "".join(f'<circle cx="{x}" cy="{y}" r="4" fill="#f59e0b"/>' for x, y in points)
+
+    return f'''<svg width="100%" height="{svg_h}" viewBox="0 0 {svg_w} {svg_h}" xmlns="http://www.w3.org/2000/svg">
+      <line x1="20" y1="100" x2="300" y2="100" stroke="#334155" stroke-width="1"/>
+      <line x1="20" y1="10" x2="20" y2="100" stroke="#334155" stroke-width="1"/>
+      <polyline points="{pts_str}" fill="none" stroke="#38bdf8" stroke-width="3"/>
+      {circles}
+      <text x="20" y="115" fill="#94a3b8" font-size="10">06:00</text>
+      <text x="120" y="115" fill="#94a3b8" font-size="10">12:00</text>
+      <text x="220" y="115" fill="#94a3b8" font-size="10">18:00</text>
+    </svg>'''
+
+
+def generate_telemetry_chart(
+    store_id: str = "downtown-flagship",
+    chart_type: str = "bar",
+) -> dict[str, Any]:
+    """Generate dynamic SVG chart markup (bar, pie, donut, line) for A2UI WebFrameSrcdoc rendering.
+
+    Args:
+        store_id: Target store identifier (e.g., 'downtown-flagship', 'airport-express').
+        chart_type: Type of chart requested ('bar', 'pie', 'donut', 'line').
+    """
+    key = resolve_store_id(store_id) or "downtown-flagship"
+    store = STORE_TELEMETRY.get(key, STORE_TELEMETRY["downtown-flagship"])
+    store_name = store["store_name"]
+    bins = store["bins"]
+
+    chart_type_clean = chart_type.lower().strip()
+
+    items = []
+    colors = ["#38bdf8", "#f59e0b", "#10b981", "#a855f7", "#ec4899"]
+    idx = 0
+    for _item_key, b in bins.items():
+        items.append({
+            "name": b["item_name"],
+            "percent": b["level_percent"],
+            "weight": b["current_weight_kg"],
+            "max": b["max_capacity_kg"],
+            "rate": b.get("hourly_consumption_kg", 1.0),
+            "color": colors[idx % len(colors)],
+        })
+        idx += 1
+
+    if "pie" in chart_type_clean or "donut" in chart_type_clean:
+        is_donut = "donut" in chart_type_clean
+        svg_content = _build_svg_pie_chart(items, is_donut=is_donut)
+    elif "line" in chart_type_clean:
+        svg_content = _build_svg_line_chart(items)
+    else:
+        svg_content = _build_svg_bar_chart(items)
+
+    html_srcdoc = f"""<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'">
+<style>
+  * {{ box-sizing: border-box; margin: 0; padding: 0; }}
+  body {{ font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #f8fafc; padding: 12px; font-size: 13px; }}
+  .chart-container {{ width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }}
+  .chart-title {{ font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 10px; text-align: center; }}
+  .legend-item {{ display: flex; align-items: center; gap: 6px; font-size: 11px; color: #cbd5e1; }}
+  .color-box {{ width: 10px; height: 10px; border-radius: 2px; }}
+</style>
+</head>
+<body>
+  <div class="chart-container">
+    <div class="chart-title">{store_name} - Telemetry ({chart_type.upper()})</div>
+    {svg_content}
+  </div>
+</body>
+</html>"""
+
+    return {
+        "store_id": key,
+        "store_name": store_name,
+        "chart_type": chart_type,
+        "html_srcdoc": html_srcdoc,
+        "a2ui_webframe_component": {
+            "id": "telemetry_chart_iframe",
+            "component": "WebFrameSrcdoc",
+            "props": {
+                "view_type": "AnalyticsChart",
+                "height": 220,
+                "srcdoc": {"literalString": html_srcdoc},
+            },
+        },
+    }
+
