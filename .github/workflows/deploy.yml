@@ -39,7 +39,6 @@ jobs:
           enable-cache: true
 
       - name: Register / Synchronize Agent in Gemini Enterprise
-        continue-on-error: true
         run: |
           uvx --from google-agents-cli agents-cli publish gemini-enterprise \
             --registration-type a2a \
