@@ -39,8 +39,10 @@ jobs:
           enable-cache: true
 
       - name: Register / Synchronize Agent in Gemini Enterprise
+        continue-on-error: true
         run: |
           uvx --from google-agents-cli agents-cli publish gemini-enterprise \
+            --registration-type a2a \
             --agent-card-url "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app/a2a/app/.well-known/agent-card.json" \
             --gemini-enterprise-app-id "projects/922201496337/locations/global/collections/default_collection/engines/cymbal-coffee-roasters-dem_1785169638752" \
             --display-name "cymbal_coffee_procurement_agent" \
