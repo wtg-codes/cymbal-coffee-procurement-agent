@@ -22,8 +22,6 @@ registration.
 
 from __future__ import annotations
 
-import asyncio
-import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING
