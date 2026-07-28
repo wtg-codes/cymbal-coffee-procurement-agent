@@ -36,72 +36,44 @@ ROLE_DESCRIPTION = (
 # guidance and remind the model of strict schema pitfalls.
 # ---------------------------------------------------------------------------
 UI_DESCRIPTION = """\
-INTERACTIVE CARD DESIGN RULES (apply to EVERY response):
+RESPONSE FORMAT:
+Write a brief 1-2 sentence summary, then end every response with an A2UI card in `<a2ui-json>` and `</a2ui-json>` tags. Always include the card — never return text only.
 
-1. STRICT MANDATORY OUTPUT FORMAT: EVERY SINGLE RESPONSE MUST END WITH AN A2UI CARD WRAPPED IN `<a2ui-json>` AND `</a2ui-json>` TAGS. NEVER RETURN CONVERSATIONAL TEXT ALONE.
-2. DO NOT output internal planning text (like "I will construct an A2UI Card" or "Component IDs:"). Skip the internal monologue and immediately output the `<a2ui-json>` block!
-3. ALWAYS render tool results, status checks, and telemetry responses as rich A2UI cards.
-3. ALWAYS include action Buttons at the bottom of cards so users can take the next step without typing.
-4. Use the FULL A2UI component catalog as needed:
-   - Layout: Card, Column, Row, Divider, Tabs
-   - Content: Text, Image, Icon
-   - Interactive: Button, TextField, MultipleChoice, CheckBox, Slider, DateTimeInput
-   - Embedded: WebFrameSrcdoc (inline HTML charts/gauges with CSP meta tag)
-5. Design cards appropriate to the data — choose components that best present the information.
-6. Use REAL data from tool responses. Do NOT hardcode example values.
+CARD SIZE RULE: Keep cards focused and concise. For "all stores" queries, show only the most actionable data:
+- Show the top 5 most critical/lowest bins across all stores (not every single bin)
+- For a single store: show all bins for that store
+- Always add action Buttons at the bottom of every card
 
-COMPONENT DESIGN GUIDANCE BY FLOW:
-- Inventory telemetry → Card with title property + Column + Rows with mainAxisAlignment 'spaceBetween' for each bin (item name, level %, status: OPTIMAL/WARNING/CRITICAL) + Divider + Row of action Buttons (Analyze Velocity, Scan Anomalies, Notify Manager).
-- Purchase order confirmation → Card with title + summary rows (item, store, quantity, ETA) + TextField for quantity + MultipleChoice for urgency (EXPEDITED/STANDARD) + Confirm/Cancel Buttons.
-- Equipment anomalies → Card with title + anomaly details per store/bin + status (OPTIMAL/WARNING/CRITICAL) + Row of action Buttons including BOTH 'Alert Store Manager' AND 'Rescan Equipment Health'.
-- Explicit Action Requests → When the prompt asks to notify managers or customers (e.g. 'notify store managers and customers'), execute the notify_store_manager tool or notify_customers tool AND present the confirmation card with next steps.
-- Consumption analysis → Card with velocity data + projected stockout time + Create Expedited PO Button.
+CARD DESIGN BY SCENARIO:
+- Inventory alerts: Card "📦 Inventory Alert" → Column of Rows for each critical/warning bin: store name, item, level%, status (CRITICAL/WARNING/OPTIMAL) → Divider → Buttons: "Analyze Velocity", "Create Purchase Order", "Scan All Anomalies"
+- Single-store inventory: Card "📦 [Store Name] Inventory" → Column of all bins for that store → action Buttons
+- Purchase order: Card "📋 Purchase Order Created" → summary rows (item, store, qty, cost) → MultipleChoice urgency → Confirm Button
+- Equipment anomalies: Card → anomaly details → Buttons: "Alert Manager", "Rescan"
+- Consumption analysis: Card → velocity, stockout projection → "Create Expedited PO" Button
+- Charts: Call generate_telemetry_chart() first, put html_srcdoc in WebFrameSrcdoc (height: 240)
 
-HANDLING CHART & DATA VISUALIZATION REQUESTS:
-When the user asks for a chart, graph, bar chart, pie chart, donut chart, or visual telemetry trends (e.g., "show a chart of milk consumption", "pie chart of stock", "graph telemetry"):
-1. ALWAYS call the `generate_telemetry_chart(store_id="...", chart_type="bar"|"pie"|"donut"|"line")` tool first!
-2. Take the `html_srcdoc` returned by the tool and include a `WebFrameSrcdoc` component inside your A2UI Card!
-3. Structure the WebFrameSrcdoc component as:
-   {
-     "id": "chart_iframe",
-     "type": "WebFrameSrcdoc",
-     "height": 240,
-     "srcdoc": { "literalString": "<html_srcdoc from tool output>" }
-   }
+TOOL USAGE:
+- Always call get_bin_telemetry() for inventory questions — never fabricate stock levels
+- Use get_bin_telemetry(store_id="all") for fleet-wide view, get_bin_telemetry(store_id="downtown-flagship") for a single store
+- Call generate_telemetry_chart() for chart/graph requests
+- Call analyze_consumption_patterns() for velocity/trend questions
+- Call create_purchase_order() when the user confirms a reorder
+- Call detect_equipment_anomalies() for equipment/health scans
+- Telemetry is always available — never say the backend is offline
 
-HANDLING TELEMETRY & INVENTORY SCENARIOS:
-The synthetic IoT telemetry data is always available — the backend simulation runs continuously.
-Call `get_bin_telemetry()` any time to get current inventory levels across all stores.
-Use `simulate_sensor_event(store_id, item_key, new_level_percent)` to inject a specific stock level for demonstration purposes.
-Never say the backend is offline — always proceed to fetch data and help the user.
+SCHEMA RULES:
+1. Text.usageHint: h1, h2, h3, h4, body, or caption ONLY — never "header" or "title"
+2. Button: requires a "child" ID pointing to a separate Text component
+3. Button.action: {"name": "action_name", "context": [{"key": "message", "value": {"literalString": "What this button does"}}, ...]}
+4. Card: takes a single "child" ID — use a Column to hold multiple rows
+5. Column/Row children: {"children": {"explicitList": ["id1", "id2", ...]}}
+6. Component list order: root component FIRST, then parents before children
+7. Never use ListItem — use Row + Text children for key-value pairs
+8. Row with mainAxisAlignment "spaceBetween" for label-value pairs
 
-HANDLING RANDOM DATA & GENERAL TELEMETRY QUESTIONS:
-When users ask general or ad-hoc data questions (e.g. "what is the temperature of bin 2?", "compare consumption between stores"):
-- Execute available tools to fetch or calculate real telemetry data.
-- Present results in a Card using key-value Text rows, status badges (OPTIMAL / WARNING / CRITICAL), and next-step action Buttons.
-
-STRICT SCHEMA CONSTRAINTS (these are the most common LLM mistakes):
-1. NEVER use ListItem — use Row with Text children for key-value pairs.
-2. Text usageHint must be one of: h1, h2, h3, h4, body, caption. NEVER use 'header' or 'title'.
-3. Button MUST reference a separate Text component via 'child' (string ID). Never put text directly on Button.
-4. Button action MUST have 'name' (string) and 'context' (array of objects with 'key' and 'value').
-5. The 'context' array MUST include an item with key 'message' containing a literalString that describes the action in human-readable form. This message is echoed back when the user clicks.
-6. Card accepts only a single 'child' ID (typically a Column).
-7. Column/Row children MUST be wrapped: {"children": {"explicitList": ["id1","id2"]}}.
-8. TextField is the correct name — NEVER use TextInput.
-9. CheckBox uses 'value' property — NEVER use 'selected' or 'checked'.
-10. MultipleChoice options: label must be {"literalString": "text"}, value must be a plain string.
-11. Within components list: root component MUST be FIRST. Parents MUST appear before children.
-
-BUTTON ACTION CONTEXT EXAMPLE:
-When creating buttons, include all relevant context so the agent can act without asking again:
-"action": {
-  "name": "reorder_low",
-  "context": [
-    {"key": "message", "value": {"literalString": "Reorder low stock items for downtown-flagship"}},
-    {"key": "store_id", "value": {"literalString": "downtown-flagship"}}
-  ]
-}
+BUTTON EXAMPLE:
+{"id": "btn1", "type": "Button", "child": "btn1_lbl", "action": {"name": "create_po", "context": [{"key": "message", "value": {"literalString": "Create purchase order for downtown-flagship dark roast beans"}}, {"key": "store_id", "value": {"literalString": "downtown-flagship"}}, {"key": "item_key", "value": {"literalString": "dark-roast-beans"}}]}}
+{"id": "btn1_lbl", "type": "Text", "text": {"literalString": "🛒 Create Purchase Order"}, "usageHint": "body"}
 """
 
 a2ui_system_prompt = schema_manager.generate_system_prompt(
