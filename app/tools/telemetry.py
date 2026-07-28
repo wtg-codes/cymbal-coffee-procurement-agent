@@ -254,7 +254,15 @@ def get_simulation_status() -> dict[str, Any]:
 def check_cloud_run_backend_health(url: str = CLOUD_RUN_DASHBOARD_URL) -> dict[str, Any]:
     """Check if the Cloud Run synthetic telemetry & dashboard backend is online and responding."""
     base_url = url.rstrip("/")
-    endpoints_to_check = [f"{base_url}/health", f"{base_url}/api/dashboard/data", f"{base_url}/"]
+    port = os.getenv("PORT", "8080")
+    endpoints_to_check = [
+        f"http://127.0.0.1:{port}/health",
+        f"http://127.0.0.1:8080/health",
+        f"http://127.0.0.1:8000/health",
+        f"{base_url}/health",
+        f"{base_url}/api/dashboard/data",
+        f"{base_url}/",
+    ]
     dashboard_url = f"{base_url}/dashboard"
 
     last_error = None
@@ -376,8 +384,12 @@ def detect_equipment_anomalies(store_id: str = "all") -> dict[str, Any]:
             "stores": results,
         }
 
-    key = resolve_store_id(store_id) or "downtown-flagship"
-    store = STORE_TELEMETRY.get(key, STORE_TELEMETRY["downtown-flagship"])
+    key = resolve_store_id(store_id)
+    if not key:
+        return {"error": f"Store ID '{store_id}' not found."}
+    store = STORE_TELEMETRY.get(key)
+    if not store:
+        return {"error": f"Store ID '{store_id}' not found."}
     return {
         "store_id": key,
         "store_name": store["store_name"],
