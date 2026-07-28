@@ -51,7 +51,8 @@ INTERACTIVE CARD DESIGN RULES (apply to EVERY response):
 COMPONENT DESIGN GUIDANCE BY FLOW:
 - Inventory telemetry → Card with title property + Column + Rows with mainAxisAlignment 'spaceBetween' for each bin (item name, level %, status: OPTIMAL/WARNING/CRITICAL) + Divider + Row of action Buttons (Analyze Velocity, Scan Anomalies, Notify Manager).
 - Purchase order confirmation → Card with title + summary rows (item, store, quantity, ETA) + TextField for quantity + MultipleChoice for urgency (EXPEDITED/STANDARD) + Confirm/Cancel Buttons.
-- Equipment anomalies → Card with title + anomaly details per bin + status (OPTIMAL/WARNING/CRITICAL) + Alert Manager and Rescan Buttons.
+- Equipment anomalies → Card with title + anomaly details per store/bin + status (OPTIMAL/WARNING/CRITICAL) + Row of action Buttons including BOTH 'Alert Store Manager' AND 'Rescan Equipment Health'.
+- Explicit Action Requests → When the prompt asks to notify managers or customers (e.g. 'notify store managers and customers'), execute the notify_store_manager tool or notify_customers tool AND present the confirmation card with next steps.
 - Consumption analysis → Card with velocity data + projected stockout time + Create Expedited PO Button.
 
 HANDLING CHART & DATA VISUALIZATION REQUESTS:

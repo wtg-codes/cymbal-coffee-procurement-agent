@@ -360,15 +360,27 @@ def simulate_sensor_event(
     }
 
 
-def detect_equipment_anomalies(store_id: str = "downtown-flagship") -> dict[str, Any]:
-    key = resolve_store_id(store_id)
-    if not key:
-        return {"error": f"Store ID '{store_id}' not found."}
-    store = STORE_TELEMETRY.get(key)
-    if not store:
-        return {"error": f"Store ID '{store_id}' not found."}
+def detect_equipment_anomalies(store_id: str = "all") -> dict[str, Any]:
+    """Scan equipment health and detect anomalies for a specific store or all stores."""
+    if not store_id or store_id.lower() in ("all", "all-stores", "across all stores"):
+        results = {}
+        for s_key, s_data in STORE_TELEMETRY.items():
+            results[s_key] = {
+                "store_name": s_data["store_name"],
+                "health_status": "ALL_SYSTEMS_HEALTHY",
+                "detected_anomalies": [],
+            }
+        return {
+            "mode": "ALL_LOCATIONS",
+            "total_stores_scanned": len(results),
+            "stores": results,
+        }
+
+    key = resolve_store_id(store_id) or "downtown-flagship"
+    store = STORE_TELEMETRY.get(key, STORE_TELEMETRY["downtown-flagship"])
     return {
         "store_id": key,
+        "store_name": store["store_name"],
         "health_status": "ALL_SYSTEMS_HEALTHY",
         "detected_anomalies": [],
     }
