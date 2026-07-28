@@ -22,6 +22,8 @@ registration.
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import logging
 import os
 from typing import TYPE_CHECKING
@@ -116,11 +118,19 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         content = genai_types.Content(role="user", parts=[{"text": query}])
         final_response_content = ""
 
+        async def _heartbeat():
+            try:
+                while True:
+                    await asyncio.sleep(2.0)
+                    await updater.update_status(types.TaskState.working)
+            except asyncio.CancelledError:
+                pass
+
+        heartbeat_task = asyncio.create_task(_heartbeat())
         try:
             async for event in self._runner.run_async(
                 user_id=self._user_id, session_id=session.id, new_message=content
             ):
-                await updater.update_status(types.TaskState.working)
                 if event.is_final_response():
                     if (
                         event.content
@@ -135,6 +145,10 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
                 )
             )
             return
+        finally:
+            heartbeat_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await heartbeat_task
 
         if not final_response_content:
             await updater.failed(
