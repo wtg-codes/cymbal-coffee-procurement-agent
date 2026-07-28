@@ -38,27 +38,30 @@ ROLE_DESCRIPTION = (
 UI_DESCRIPTION = """\
 RESPONSE FORMAT:
 Write a brief 1-2 sentence summary, then output A2UI wire-protocol JSON inside <a2ui-json> and </a2ui-json> tags.
-Always include the card. Max 15 components total.
+ALWAYS output an A2UI card for every response (inventory, analysis, PO confirmation, diagnostics, chart requests). Max 15 components.
 
 OUTPUT: A JSON array with TWO messages: first a beginRendering, then a surfaceUpdate.
 The surfaceUpdate components use the wrapper format: {{"id":"...", "component": {{"TypeName": <props>}}}}.
 
-SCHEMA (v0.8 — additionalProperties:false — any unknown prop CRASHES the renderer):
+ALLOWED A2UI 0.8 COMPONENTS ONLY (Other components like WebFrameSrcdoc cause Form Validation Error):
+Card:    props = {{"child": "<component_id>"}}            ← ONLY 'child'. NO title/label/header.
+Column:  props = {{"children": {{"explicitList":["id1","id2"]}}, "distribution": "start"|"spaceBetween"|"spaceAround"|"center"|"end", "alignment": "start"|"center"|"end"|"stretch"}}
+Row:     props = same as Column
+Text:    props = {{"text": {{"literalString":"..."}}, "usageHint": "h1"|"h2"|"h3"|"h4"|"h5"|"body"|"caption"}}
+Button:  props = {{"child": "<label_id>", "primary": true, "action": {{"name":"action_name", "context":[{"key":"message","value":{{"literalString":"..."}}}]}}}}
+Divider: props = {{"axis": "horizontal"|"vertical"}}
 
-Card:   props = {{"child": "<component_id>"}}            ← ONLY 'child'. NO title/label/header.
-Column: props = {{"children": {{"explicitList":["id1","id2"]}}, "distribution": "start"|"spaceBetween"|"spaceAround"|"center"|"end", "alignment": "start"|"center"|"end"|"stretch"}}
-Row:    props = same as Column
-Text:   props = {{"text": {{"literalString":"..."}}, "usageHint": "h1"|"h2"|"h3"|"h4"|"h5"|"body"|"caption"}}
-Button: props = {{"child": "<label_id>", "primary": true, "action": {{"name":"action_name", "context":[{"key":"message","value":{{"literalString":"..."}}}]}}}}
-Divider: props = {{"axis": "horizontal"}}
-
-CRITICAL RULES:
+STRICT RULES TO PREVENT FORM VALIDATION ERRORS:
 1. Card has ONLY "child" — no other properties.
-2. Use "distribution" on Row/Column — NOT "mainAxisAlignment".
+2. Use "distribution" on Row/Column — NOT "mainAxisAlignment" or "justify".
 3. Text usageHint ONLY: h1 h2 h3 h4 h5 body caption.
 4. No emoji — ASCII text only.
 5. Every ID in "child" / "explicitList" MUST exist as a component in the same surfaceUpdate.
-6. Put the card title as a Text h2 component inside the Column, NOT on the Card itself.
+6. Put card titles as Text h2 components inside the Column.
+7. FORBIDDEN: WebFrameSrcdoc, WebFrameUrl, or custom component names.
+
+CHARTS & VISUAL TELEMETRY:
+- For chart/graph requests: render a visual A2UI card with progress bars (e.g. "[████████░░] 78%"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
 
 CORRECT WIRE-PROTOCOL EXAMPLE:
 [
@@ -67,11 +70,12 @@ CORRECT WIRE-PROTOCOL EXAMPLE:
     "surfaceId": "inventoryCard",
     "components": [
       {{"id":"card",    "component": {{"Card":   {{"child":"col"}}}}}},
-      {{"id":"col",     "component": {{"Column": {{"children":{{"explicitList":["title","row1","divider","btn"]}}, "distribution":"start", "alignment":"stretch"}}}}}},
-      {{"id":"title",   "component": {{"Text":   {{"text":{{"literalString":"Downtown Flagship Inventory"}}, "usageHint":"h2"}}}}}},
+      {{"id":"col",     "component": {{"Column": {{"children":{{"explicitList":["title","bar1","row1","divider","btn"]}}, "distribution":"start", "alignment":"stretch"}}}}}},
+      {{"id":"title",   "component": {{"Text":   {{"text":{{"literalString":"Downtown Flagship Inventory Chart"}}, "usageHint":"h2"}}}}}},
+      {{"id":"bar1",    "component": {{"Text":   {{"text":{{"literalString":"Oat Milk [██░░░░░░░░] 6.2% CRITICAL"}}, "usageHint":"body"}}}}}},
       {{"id":"row1",    "component": {{"Row":    {{"children":{{"explicitList":["lbl1","val1"]}}, "distribution":"spaceBetween"}}}}}},
       {{"id":"lbl1",    "component": {{"Text":   {{"text":{{"literalString":"Dark Roast Beans"}}, "usageHint":"body"}}}}}},
-      {{"id":"val1",    "component": {{"Text":   {{"text":{{"literalString":"23% - CRITICAL"}}, "usageHint":"body"}}}}}},
+      {{"id":"val1",    "component": {{"Text":   {{"text":{{"literalString":"[████████░░] 23.0% OK"}}, "usageHint":"body"}}}}}},
       {{"id":"divider", "component": {{"Divider":{{"axis":"horizontal"}}}}}},
       {{"id":"btn",     "component": {{"Button": {{"child":"btn_lbl", "primary":true, "action":{{"name":"create_po", "context":[{"key":"message","value":{{"literalString":"Create purchase order for downtown flagship dark roast beans"}}}]}}}}}}}},
       {{"id":"btn_lbl", "component": {{"Text":   {{"text":{{"literalString":"Create Purchase Order"}}, "usageHint":"body"}}}}}}
@@ -87,13 +91,8 @@ TOOL USAGE:
 - Call create_purchase_order() when user confirms a reorder
 - Call detect_equipment_anomalies() for equipment/health scans
 - Telemetry is always available — never say the backend is offline
-
-CARD DESIGNS:
-- Single store inventory: Column with title h2, one Row per bin (item name + level%), Divider, action Buttons
-- Fleet summary: top 5 critical bins only (store + item + level)
-- Purchase order confirmed: summary rows (item, qty, cost), confirmation Button
-- Consumption analysis: velocity rows, stockout date, "Create Expedited PO" Button
 """
+
 
 a2ui_system_prompt = schema_manager.generate_system_prompt(
     role_description=ROLE_DESCRIPTION,
