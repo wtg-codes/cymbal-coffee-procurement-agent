@@ -20,7 +20,7 @@ jobs:
         with: { enable-cache: true }
       - run: uv python install 3.12
       - run: uv sync --all-groups
-      - run: uv run ruff check .
+      - run: uvx ruff check .
       - uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_CREDENTIALS }}'
