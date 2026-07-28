@@ -1,6 +1,6 @@
 # Copyright 2026 Google LLC
 
-"""Deterministic A2UI 0.8 Card Generator for Cymbal Coffee Procurement Agent.
+"""Deterministic A2UI v0.9 Card Generator for Cymbal Coffee Procurement Agent.
 
 Ensures 100% schema-valid, visually impressive A2UI cards are rendered for every step
 of the demo scenario in Gemini Enterprise and adk web.
@@ -10,12 +10,14 @@ import logging
 import re
 from typing import Any
 
+from app.a2ui_config import normalize_a2ui_messages
+
 logger = logging.getLogger(__name__)
 
 
 def build_fleet_inventory_card() -> list[dict[str, Any]]:
     """Build Fleet Critical Stock Alert Card."""
-    return [
+    return normalize_a2ui_messages([
         {"beginRendering": {"surfaceId": "fleet_inventory", "root": "card"}},
         {
             "surfaceUpdate": {
@@ -206,7 +208,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                 ],
             }
         },
-    ]
+    ])
 
 
 def build_po_confirmation_card(
@@ -218,7 +220,7 @@ def build_po_confirmation_card(
     eta: str = "2 Hours (Expedited)",
 ) -> list[dict[str, Any]]:
     """Build Expedited Purchase Order Confirmation Card."""
-    return [
+    return normalize_a2ui_messages([
         {"beginRendering": {"surfaceId": "po_confirmation", "root": "card"}},
         {
             "surfaceUpdate": {
@@ -262,7 +264,7 @@ def build_po_confirmation_card(
                         "id": "sub",
                         "component": {
                             "Text": {
-                                "text": {"literalString": f"Expedited Order — {store}"},
+                                "text": {"literalString": f"Expedited Order - {store}"},
                                 "usageHint": "h4",
                             }
                         },
@@ -427,7 +429,7 @@ def build_po_confirmation_card(
                 ],
             }
         },
-    ]
+    ])
 
 
 def build_consumption_analysis_card(
@@ -439,7 +441,7 @@ def build_consumption_analysis_card(
     reorder_qty: str = "40.0 kg",
 ) -> list[dict[str, Any]]:
     """Build Consumption Velocity & Stockout Analysis Card."""
-    return [
+    return normalize_a2ui_messages([
         {"beginRendering": {"surfaceId": "consumption_analysis", "root": "card"}},
         {
             "surfaceUpdate": {
@@ -481,7 +483,7 @@ def build_consumption_analysis_card(
                         "id": "sub",
                         "component": {
                             "Text": {
-                                "text": {"literalString": f"{store} — {item}"},
+                                "text": {"literalString": f"{store} - {item}"},
                                 "usageHint": "caption",
                             }
                         },
@@ -616,14 +618,14 @@ def build_consumption_analysis_card(
                 ],
             }
         },
-    ]
+    ])
 
 
 def build_equipment_diagnostic_card(
     store: str = "SFO Terminal 2",
 ) -> list[dict[str, Any]]:
     """Build Equipment Diagnostic Card."""
-    return [
+    return normalize_a2ui_messages([
         {"beginRendering": {"surfaceId": "equipment_diagnostic", "root": "card"}},
         {
             "surfaceUpdate": {
@@ -693,7 +695,7 @@ def build_equipment_diagnostic_card(
                         "id": "val_g",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "42.5°C (Normal <65°C)"},
+                                "text": {"literalString": "42.5 degrees C (Normal <65 degrees C)"},
                                 "usageHint": "body",
                             }
                         },
@@ -720,7 +722,7 @@ def build_equipment_diagnostic_card(
                         "id": "val_c",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "3.8°C (Normal 2-5°C)"},
+                                "text": {"literalString": "3.8 degrees C (Normal 2-5 degrees C)"},
                                 "usageHint": "body",
                             }
                         },
@@ -812,14 +814,14 @@ def build_equipment_diagnostic_card(
                 ],
             }
         },
-    ]
+    ])
 
 
 def build_visual_chart_card(
     store: str = "Downtown Flagship",
 ) -> list[dict[str, Any]]:
     """Build Visual Telemetry Bar Chart Card."""
-    return [
+    return normalize_a2ui_messages([
         {"beginRendering": {"surfaceId": "visual_chart", "root": "card"}},
         {
             "surfaceUpdate": {
@@ -1005,7 +1007,7 @@ def build_visual_chart_card(
                 ],
             }
         },
-    ]
+    ])
 
 
 def get_scenario_card(query: str, text: str = "") -> list[dict[str, Any]]:

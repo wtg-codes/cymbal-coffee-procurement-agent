@@ -3,21 +3,32 @@
 import json
 import logging
 import re
+import unicodedata
+from typing import Any
 
 from a2a import types
 from a2ui.a2a.extension import get_a2ui_agent_extension
 from a2ui.basic_catalog.provider import BasicCatalog
-from a2ui.schema.constants import VERSION_0_8
+from a2ui.schema.constants import VERSION_0_8, VERSION_0_9
 from a2ui.schema.manager import A2uiSchemaManager
+from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
 
 logger = logging.getLogger(__name__)
 
-A2UI_VERSION = VERSION_0_8
+A2UI_VERSION = VERSION_0_9
 
 schema_manager = A2uiSchemaManager(
     version=A2UI_VERSION,
     catalogs=[
         BasicCatalog.get_config(version=A2UI_VERSION),
+    ],
+)
+A2UI_CATALOG_ID = schema_manager.supported_catalog_ids[0]
+v08_schema_manager = A2uiSchemaManager(
+    version=VERSION_0_8,
+    catalogs=[
+        BasicCatalog.get_config(version=VERSION_0_8),
     ],
 )
 
@@ -35,50 +46,53 @@ ROLE_DESCRIPTION = (
 # <a2ui-json> tag format.  We only need to add domain-specific card design
 # guidance and remind the model of strict schema pitfalls.
 # ---------------------------------------------------------------------------
-UI_DESCRIPTION = """\
+UI_DESCRIPTION = f"""\
 RESPONSE FORMAT:
 Write a brief 1-2 sentence summary, then output A2UI wire-protocol JSON inside <a2ui-json> and </a2ui-json> tags.
 ALWAYS output an A2UI card for every response (inventory, analysis, PO confirmation, diagnostics, chart requests). Max 15 components.
 
-OUTPUT: A JSON array with TWO messages: first a beginRendering, then a surfaceUpdate.
-The surfaceUpdate components use the wrapper format: {{"id":"...", "component": {{"TypeName": <props>}}}}.
+OUTPUT: A JSON array with TWO messages: first createSurface, then updateComponents.
+Every message MUST include "version":"v0.9". The createSurface message MUST use catalogId "{A2UI_CATALOG_ID}".
+The updateComponents list uses flat components: {{"id":"...", "component":"TypeName", ...props}}.
+The FIRST component MUST have id "root".
 
-ALLOWED A2UI 0.8 COMPONENTS ONLY (Other components like WebFrameSrcdoc cause Form Validation Error):
+ALLOWED A2UI 0.9 COMPONENTS ONLY (Other components like WebFrameSrcdoc cause Form Validation Error):
 Card:    props = {{"child": "<component_id>"}}            ← ONLY 'child'. NO title/label/header.
-Column:  props = {{"children": {{"explicitList":["id1","id2"]}}, "distribution": "start"|"spaceBetween"|"spaceAround"|"center"|"end", "alignment": "start"|"center"|"end"|"stretch"}}
+Column:  props = {{"children": ["id1","id2"], "justify": "start"|"spaceBetween"|"spaceAround"|"spaceEvenly"|"center"|"end"|"stretch", "align": "start"|"center"|"end"|"stretch"}}
 Row:     props = same as Column
-Text:    props = {{"text": {{"literalString":"..."}}, "usageHint": "h1"|"h2"|"h3"|"h4"|"h5"|"body"|"caption"}}
-Button:  props = {{"child": "<label_id>", "primary": true, "action": {{"name":"action_name", "context":[{"key":"message","value":{{"literalString":"..."}}}]}}}}
+Text:    props = {{"text": "...", "variant": "h1"|"h2"|"h3"|"h4"|"h5"|"body"|"caption"}}
+Button:  props = {{"child": "<label_id>", "variant": "primary"|"default"|"borderless", "action": {{"event":{{"name":"action_name", "context":{{"message":"..."}}}}}}}}
 Divider: props = {{"axis": "horizontal"|"vertical"}}
 
 STRICT RULES TO PREVENT FORM VALIDATION ERRORS:
 1. Card has ONLY "child" — no other properties.
-2. Use "distribution" on Row/Column — NOT "mainAxisAlignment" or "justify".
-3. Text usageHint ONLY: h1 h2 h3 h4 h5 body caption.
+2. Use "justify" and "align" on Row/Column — NOT "distribution", "alignment", or "mainAxisAlignment".
+3. Text variant ONLY: h1 h2 h3 h4 h5 body caption.
 4. No emoji — ASCII text only.
-5. Every ID in "child" / "explicitList" MUST exist as a component in the same surfaceUpdate.
+5. Every ID in "child" / "children" MUST exist as a component in the same updateComponents.
 6. Put card titles as Text h2 components inside the Column.
 7. FORBIDDEN: WebFrameSrcdoc, WebFrameUrl, or custom component names.
+8. Do NOT use beginRendering, surfaceUpdate, type, explicitList, usageHint, primary, or literalString.
 
 CHARTS & VISUAL TELEMETRY:
 - For chart/graph requests: render a visual A2UI card with progress bars (e.g. "[========..] 78%"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
-- STRICT CATALOG REQUIREMENT: You MUST ONLY use valid A2UI 0.8 components: Card, Column, Row, Text, Button, Divider, Image, Icon.
-- NEVER use WebFrameSrcdoc or WebFrameUrl — they are unsupported extensions in v0.8 and cause form validation errors.
+- STRICT CATALOG REQUIREMENT: You MUST ONLY use valid A2UI 0.9 components: Card, Column, Row, Text, Button, Divider, Image, Icon.
+- NEVER use WebFrameSrcdoc or WebFrameUrl — they are unsupported extensions in v0.9 and cause form validation errors.
 
 Structure of <a2ui-json> block:
 <a2ui-json>
 [
-  {"beginRendering": {"surfaceId": "cardSurface", "root": "card"}},
-  {"surfaceUpdate": {"surfaceId": "cardSurface", "components": [
-      {"id":"card",    "component": {"Card":   {"child":"col"}}},
-      {"id":"col",     "component": {"Column": {"children": {"explicitList":["title","divider","bar1","btn"]}}}},
-      {"id":"title",   "component": {"Text":   {"text":{"literalString":"Fleet Inventory Telemetry"}, "usageHint":"h2"}}},
-      {"id":"divider", "component": {"Divider":{"axis":"horizontal"}}},
-      {"id":"bar1",    "component": {"Text":   {"text":{"literalString":"Oat Milk [==........] 6.2% CRITICAL"}, "usageHint":"body"}}},
-      {"id":"btn",     "component": {"Button": {"child":"btnText", "primary":true, "action":{"name":"reorder", "context": [{"key":"message", "value":{"literalString":"Reorder Oat Milk"}}]}}}},
-      {"id":"btnText", "component": {"Text":   {"text":{"literalString":"Reorder Oat Milk"}, "usageHint":"body"}}},
-      {"id":"val1",    "component": {"Text":   {"text":{"literalString":"[========..] 23.0% OK"}, "usageHint":"body"}}}
-  ]}}
+  {{"version":"v0.9", "createSurface":{{"surfaceId":"cardSurface", "catalogId":"{A2UI_CATALOG_ID}"}}}},
+  {{"version":"v0.9", "updateComponents":{{"surfaceId":"cardSurface", "components":[
+      {{"id":"root",    "component":"Card",   "child":"col"}},
+      {{"id":"col",     "component":"Column", "children":["title","divider","bar1","btn"], "justify":"start", "align":"stretch"}},
+      {{"id":"title",   "component":"Text",   "text":"Fleet Inventory Telemetry", "variant":"h2"}},
+      {{"id":"divider", "component":"Divider","axis":"horizontal"}},
+      {{"id":"bar1",    "component":"Text",   "text":"Oat Milk [==........] 6.2% CRITICAL", "variant":"body"}},
+      {{"id":"btn",     "component":"Button", "child":"btnText", "variant":"primary", "action":{{"event":{{"name":"reorder", "context":{{"message":"Reorder Oat Milk"}}}}}}}},
+      {{"id":"btnText", "component":"Text",   "text":"Reorder Oat Milk", "variant":"body"}},
+      {{"id":"val1",    "component":"Text",   "text":"[========..] 23.0% OK", "variant":"body"}}
+  ]}}}}
 ]
 </a2ui-json>
 
@@ -100,13 +114,12 @@ a2ui_system_prompt = schema_manager.generate_system_prompt(
 
 
 def get_a2ui_extensions():
-    """Return A2UI extensions for the AgentCard capabilities supporting both v0.8 and v0.9."""
-    from a2a.types import AgentExtension
-
+    """Return the A2UI versions supported by the A2A endpoint."""
     return [
-        AgentExtension(
-            uri="https://a2ui.org/a2a-extension/a2ui/v0.8",
-            description="Provides agent driven UI using the A2UI v0.8 JSON format.",
+        get_a2ui_agent_extension(
+            VERSION_0_8,
+            v08_schema_manager.accepts_inline_catalogs,
+            v08_schema_manager.supported_catalog_ids,
         ),
         get_a2ui_agent_extension(
             A2UI_VERSION,
@@ -114,6 +127,329 @@ def get_a2ui_extensions():
             schema_manager.supported_catalog_ids,
         ),
     ]
+
+
+def _schema_validator(
+    manager: A2uiSchemaManager = schema_manager,
+) -> Draft202012Validator:
+    """Build a validator from the exact schemas loaded by an A2UI SDK manager."""
+    catalog = manager.get_selected_catalog()
+    catalog_alias = (
+        catalog.s2c_schema["$id"].rsplit("/", 1)[0] + "/catalog.json"
+    )
+    registry = Registry()
+    for uri, schema in (
+        (catalog.common_types_schema["$id"], catalog.common_types_schema),
+        (catalog.catalog_schema["$id"], catalog.catalog_schema),
+        (catalog_alias, catalog.catalog_schema),
+    ):
+        registry = registry.with_resource(uri, Resource.from_contents(schema))
+    return Draft202012Validator(catalog.s2c_schema, registry=registry)
+
+
+def validate_a2ui_message(message: dict[str, Any]) -> None:
+    """Raise jsonschema.ValidationError when a message is not valid A2UI v0.9."""
+    _schema_validator().validate(message)
+
+
+def validate_a2ui_messages(messages: list[dict[str, Any]]) -> None:
+    """Validate every A2UI v0.9 wire message in order."""
+    validator = _schema_validator()
+    for message in messages:
+        validator.validate(message)
+
+
+def validate_a2ui_v08_messages(messages: list[dict[str, Any]]) -> None:
+    """Validate every A2UI v0.8 wire message in order."""
+    v08_schema_manager.get_selected_catalog().validator.validate(messages)
+
+
+def _literal_value(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return value
+    for key in ("literalString", "literalNumber", "literalBoolean"):
+        if key in value:
+            return value[key]
+    return value
+
+
+def _ascii_text(value: Any) -> Any:
+    """Return renderer-safe ASCII for visible A2UI text."""
+    if not isinstance(value, str):
+        return value
+    replacements = str.maketrans(
+        {
+            "\u2013": "-",
+            "\u2014": "-",
+            "\u2018": "'",
+            "\u2019": "'",
+            "\u201c": '"',
+            "\u201d": '"',
+            "\u2026": "...",
+            "\u00b0": " degrees ",
+        }
+    )
+    ascii_value = (
+        unicodedata.normalize("NFKD", value.translate(replacements))
+        .encode("ascii", errors="ignore")
+        .decode("ascii")
+    )
+    ascii_value = re.sub(r"^\s*(?:\?{2,}\s*)+", "", ascii_value)
+    return re.sub(r"[^\S\n]+", " ", ascii_value).strip()
+
+
+def _normalize_action(action: Any) -> Any:
+    if not isinstance(action, dict) or "event" in action or "functionCall" in action:
+        return action
+    context = action.get("context", {})
+    if isinstance(context, list):
+        context = {
+            item["key"]: _literal_value(item.get("value"))
+            for item in context
+            if isinstance(item, dict) and "key" in item
+        }
+    return {
+        "event": {
+            "name": action.get("name", "action"),
+            "context": context,
+        }
+    }
+
+
+def normalize_a2ui_component(component: dict[str, Any]) -> dict[str, Any]:
+    """Convert v0.8 or early flat component syntax to canonical A2UI v0.9."""
+    component_id = component.get("id")
+    raw_component = component.get("component")
+
+    if isinstance(raw_component, dict) and raw_component:
+        component_type, raw_props = next(iter(raw_component.items()))
+        props = dict(raw_props) if isinstance(raw_props, dict) else {}
+    else:
+        component_type = raw_component or component.get("type") or "Text"
+        props = {
+            key: value
+            for key, value in component.items()
+            if key not in {"id", "type", "component"}
+        }
+
+    if isinstance(props.get("children"), dict) and "explicitList" in props["children"]:
+        props["children"] = props["children"]["explicitList"]
+    if "distribution" in props:
+        props["justify"] = props.pop("distribution")
+    if "alignment" in props:
+        props["align"] = props.pop("alignment")
+    if "usageHint" in props:
+        props["variant"] = props.pop("usageHint")
+    if "primary" in props:
+        props["variant"] = "primary" if props.pop("primary") else "default"
+    if "text" in props:
+        props["text"] = _ascii_text(_literal_value(props["text"]))
+    if "action" in props:
+        props["action"] = _normalize_action(props["action"])
+
+    return {"id": component_id, "component": component_type, **props}
+
+
+def build_v09_surface(
+    surface_id: str,
+    components: list[dict[str, Any]],
+    root_id: str | None = None,
+) -> list[dict[str, Any]]:
+    """Build canonical createSurface/updateComponents messages."""
+    normalized = [normalize_a2ui_component(component) for component in components]
+    selected_root = root_id or (normalized[0].get("id") if normalized else None)
+    if selected_root != "root":
+        normalized.insert(
+            0,
+            {
+                "id": "root",
+                "component": "Column",
+                "children": [selected_root] if selected_root else [],
+            },
+        )
+
+    return [
+        {
+            "version": "v0.9",
+            "createSurface": {
+                "surfaceId": surface_id,
+                "catalogId": A2UI_CATALOG_ID,
+            },
+        },
+        {
+            "version": "v0.9",
+            "updateComponents": {
+                "surfaceId": surface_id,
+                "components": normalized,
+            },
+        },
+    ]
+
+
+def normalize_a2ui_messages(
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Normalize complete legacy or current wire messages to A2UI v0.9."""
+    if messages and all(
+        message.get("version") == "v0.9"
+        and any(key in message for key in ("createSurface", "updateComponents", "updateDataModel", "deleteSurface"))
+        for message in messages
+    ):
+        normalized_messages = []
+        for message in messages:
+            update = message.get("updateComponents")
+            if isinstance(update, dict):
+                message = {
+                    **message,
+                    "updateComponents": {
+                        **update,
+                        "components": [
+                            normalize_a2ui_component(component)
+                            for component in update.get("components", [])
+                        ],
+                    },
+                }
+            normalized_messages.append(message)
+        return sorted(
+            normalized_messages,
+            key=lambda message: "createSurface" not in message,
+        )
+
+    surface_id = "main"
+    root_id = None
+    components: list[dict[str, Any]] = []
+    for message in messages:
+        if "beginRendering" in message:
+            begin = message["beginRendering"]
+            surface_id = begin.get("surfaceId", surface_id)
+            root_id = begin.get("root", root_id)
+        if "surfaceUpdate" in message:
+            update = message["surfaceUpdate"]
+            surface_id = update.get("surfaceId", surface_id)
+            components = update.get("components", components)
+
+    if components:
+        return build_v09_surface(surface_id, components, root_id)
+    return messages
+
+
+def _v08_dynamic_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return value
+    if isinstance(value, bool):
+        return {"literalBoolean": value}
+    if isinstance(value, (int, float)):
+        return {"literalNumber": value}
+    return {"literalString": str(value)}
+
+
+def _v08_action(action: Any) -> Any:
+    if not isinstance(action, dict) or "event" not in action:
+        return action
+    event = action["event"]
+    context = event.get("context", {})
+    return {
+        "name": event.get("name", "action"),
+        "context": [
+            {"key": key, "value": _v08_dynamic_value(value)}
+            for key, value in context.items()
+        ],
+    }
+
+
+def _v08_component(component: dict[str, Any]) -> dict[str, Any]:
+    component_type = component["component"]
+    props = {
+        key: value
+        for key, value in component.items()
+        if key not in {"id", "component"}
+    }
+
+    if isinstance(props.get("children"), list):
+        props["children"] = {"explicitList": props["children"]}
+    if "justify" in props:
+        props["distribution"] = props.pop("justify")
+    if "align" in props:
+        props["alignment"] = props.pop("align")
+    if component_type == "Text":
+        if "text" in props:
+            props["text"] = _v08_dynamic_value(props["text"])
+        if "variant" in props:
+            props["usageHint"] = props.pop("variant")
+    elif component_type == "Image":
+        if "url" in props:
+            props["url"] = _v08_dynamic_value(props["url"])
+        if "description" in props:
+            props["altText"] = _v08_dynamic_value(props.pop("description"))
+        if "variant" in props:
+            props["usageHint"] = props.pop("variant")
+        if props.get("fit") == "scaleDown":
+            props["fit"] = "scale-down"
+    elif component_type == "Icon" and "name" in props:
+        props["name"] = _v08_dynamic_value(props["name"])
+    elif component_type == "Button":
+        if "variant" in props:
+            props["primary"] = props.pop("variant") == "primary"
+        if "action" in props:
+            props["action"] = _v08_action(props["action"])
+
+    return {
+        "id": component["id"],
+        "component": {component_type: props},
+    }
+
+
+def convert_v09_messages_to_v08(
+    messages: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Convert canonical v0.9 surface messages to GE-compatible A2UI v0.8."""
+    roots = {}
+    for message in messages:
+        update = message.get("updateComponents")
+        if not isinstance(update, dict):
+            continue
+        components = update.get("components", [])
+        root = next(
+            (
+                component.get("id")
+                for component in components
+                if component.get("id") == "root"
+            ),
+            components[0].get("id", "root") if components else "root",
+        )
+        roots[update["surfaceId"]] = root
+    converted: list[dict[str, Any]] = []
+    for message in messages:
+        if isinstance((create := message.get("createSurface")), dict):
+            surface_id = create["surfaceId"]
+            converted.append(
+                {
+                    "beginRendering": {
+                        "surfaceId": surface_id,
+                        "root": roots.get(surface_id, "root"),
+                    }
+                }
+            )
+        elif isinstance((update := message.get("updateComponents")), dict):
+            converted.append(
+                {
+                    "surfaceUpdate": {
+                        "surfaceId": update["surfaceId"],
+                        "components": [
+                            _v08_component(component)
+                            for component in update.get("components", [])
+                        ],
+                    }
+                }
+            )
+        elif "updateDataModel" in message:
+            logger.warning(
+                "Dropping v0.9 updateDataModel because it has no lossless v0.8 "
+                "dataModelUpdate conversion."
+            )
+        elif isinstance((delete := message.get("deleteSurface")), dict):
+            converted.append({"deleteSurface": delete})
+    return converted
 
 
 def _fix_json_string(s: str) -> str:
@@ -249,35 +585,32 @@ def format_a2ui_parts(final_response_content: str) -> list[types.Part]:
     for json_str in json_blocks:
         data = extract_json_payload(json_str)
         if data:
-            messages = []
             if isinstance(data, dict) and "a2ui_messages" in data:
-                messages = data["a2ui_messages"]
+                payload_items = data["a2ui_messages"]
             else:
-                # Extract flat components list
-                components = []
-                if isinstance(data, list):
-                    components = data
-                elif isinstance(data, dict):
-                    if "components" in data and isinstance(data["components"], list):
-                        components = data["components"]
-                    else:
-                        components = [data]
+                payload_items = (
+                    data["components"]
+                    if isinstance(data, dict)
+                    and isinstance(data.get("components"), list)
+                    else [data]
+                )
 
-                messages = [
-                    {"beginRendering": {"surfaceId": "main"}},
-                    {"surfaceUpdate": {"surfaceId": "main", "components": components}},
-                ]
-
-            # Ensure beginRendering is first
-            begin_idx = -1
-            for i, msg in enumerate(messages):
-                if "beginRendering" in msg:
-                    begin_idx = i
-                    break
-
-            if begin_idx > 0:
-                msg = messages.pop(begin_idx)
-                messages.insert(0, msg)
+            wire_keys = {
+                "beginRendering",
+                "surfaceUpdate",
+                "dataModelUpdate",
+                "deleteSurface",
+                "createSurface",
+                "updateComponents",
+                "updateDataModel",
+            }
+            if any(
+                isinstance(item, dict) and wire_keys.intersection(item)
+                for item in payload_items
+            ):
+                messages = normalize_a2ui_messages(payload_items)
+            else:
+                messages = build_v09_surface("main", payload_items)
 
             for msg in messages:
                 parts.append(

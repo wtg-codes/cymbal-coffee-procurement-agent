@@ -37,6 +37,8 @@ from a2a.utils.constants import (
     AGENT_CARD_WELL_KNOWN_PATH,
     EXTENDED_AGENT_CARD_PATH,
 )
+from a2ui.a2a.extension import try_activate_a2ui_extension
+from a2ui.schema.constants import VERSION_0_8
 from google.adk.a2a.utils.agent_card_builder import AgentCardBuilder
 from google.genai import types as genai_types
 
@@ -51,6 +53,7 @@ if TYPE_CHECKING:
 _ADK_AGENT_EXECUTOR_EXTENSION_URI = (
     "https://google.github.io/adk-docs/a2a/a2a-extension/"
 )
+_A2UI_V08_EXTENSION_URI = "https://a2ui.org/a2a-extension/a2ui/v0.8"
 
 
 def _default_capabilities() -> AgentCapabilities:
@@ -59,7 +62,11 @@ def _default_capabilities() -> AgentCapabilities:
     from app.a2ui_config import get_a2ui_extensions
 
     return AgentCapabilities(
-        streaming=True,
+        # The A2A endpoint currently returns JSON-RPC responses, not SSE.
+        # Advertising streaming=True causes Gemini Enterprise / Agentspace to
+        # call it as an SSE endpoint and fail with:
+        # "Expected response header Content-Type to contain 'text/event-stream', got 'application/json'".
+        streaming=False,
         extensions=[
             AgentExtension(
                 uri=_ADK_AGENT_EXECUTOR_EXTENSION_URI,
@@ -73,12 +80,71 @@ def _default_capabilities() -> AgentCapabilities:
 logger = logging.getLogger(__name__)
 
 
+def _activate_a2ui_version(
+    context: agent_execution.RequestContext,
+    agent_card: types.AgentCard,
+) -> str:
+    active_version = try_activate_a2ui_extension(context, agent_card)
+    if active_version:
+        return active_version
+
+    context.add_activated_extension(_A2UI_V08_EXTENSION_URI)
+    logger.warning(
+        "No A2UI extension requested; defaulting to v0.8 for "
+        "Gemini Enterprise compatibility."
+    )
+    return VERSION_0_8
+
+
+def _has_complete_a2ui_surface(parts: list[types.Part]) -> bool:
+    """Return whether parts contain both messages required to render a surface."""
+    messages = [
+        part.root.data
+        for part in parts
+        if isinstance(part.root, types.DataPart) and isinstance(part.root.data, dict)
+    ]
+    return any("createSurface" in message for message in messages) and any(
+        "updateComponents" in message for message in messages
+    )
+
+
+def _scope_a2ui_surface_ids(
+    messages: list[dict],
+    scope: str,
+) -> None:
+    """Make every surface ID unique to one A2A task."""
+    scoped_ids: dict[str, str] = {}
+    safe_scope = "".join(character for character in scope if character.isalnum())[:12]
+    for message in messages:
+        for envelope in (
+            "createSurface",
+            "updateComponents",
+            "updateDataModel",
+            "deleteSurface",
+            "beginRendering",
+            "surfaceUpdate",
+            "dataModelUpdate",
+        ):
+            payload = message.get(envelope)
+            if not isinstance(payload, dict):
+                continue
+            surface_id = payload.get("surfaceId")
+            if not isinstance(surface_id, str):
+                continue
+            scoped_ids.setdefault(
+                surface_id,
+                f"{surface_id}-{safe_scope}" if safe_scope else surface_id,
+            )
+            payload["surfaceId"] = scoped_ids[surface_id]
+
+
 class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
     """Executor that intercepts LLM text and A2UI DataParts and streams them to Gemini Enterprise as A2A Part messages."""
 
-    def __init__(self, agent: BaseAgent, runner: Runner):
+    def __init__(self, agent: BaseAgent, runner: Runner, agent_card: types.AgentCard):
         self._agent = agent
         self._runner = runner
+        self._agent_card = agent_card
         self._user_id = "remote_agent"
 
     async def execute(
@@ -87,6 +153,8 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
         event_queue: events.EventQueue,
     ) -> None:
         query = context.get_user_input()
+        active_a2ui_version = _activate_a2ui_version(context, self._agent_card)
+        logger.info("Activated A2UI extension version: %s", active_a2ui_version)
 
         # Extract userAction from incoming A2A message DataParts if present
         try:
@@ -204,14 +272,14 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
             if clean_summary:
                 a2a_parts.append(types.Part(root=types.TextPart(text=clean_summary)))
 
-        a2a_parts.extend(data_parts)
-
-        # Fallback if no inline_data DataParts were captured
-        if not data_parts:
+        # A partial surface is not renderable, so replace it with the complete
+        # deterministic card rather than returning only createSurface.
+        if not _has_complete_a2ui_surface(data_parts):
             from app.a2ui_generator import get_scenario_card
             scenario_msgs = get_scenario_card(query=query, text="\n\n".join(text_chunks))
+            data_parts = []
             for msg in scenario_msgs:
-                a2a_parts.append(
+                data_parts.append(
                     types.Part(
                         root=types.DataPart(
                             data=msg,
@@ -220,6 +288,47 @@ class CustomA2aAgentExecutor(agent_execution.AgentExecutor):
                     )
                 )
 
+        a2ui_messages = [
+            part.root.data
+            for part in data_parts
+            if isinstance(part.root, types.DataPart)
+            and isinstance(part.root.data, dict)
+        ]
+        from app.a2ui_config import normalize_a2ui_messages
+
+        a2ui_messages = normalize_a2ui_messages(a2ui_messages)
+        data_parts = [
+            types.Part(
+                root=types.DataPart(
+                    data=message,
+                    metadata={"mimeType": "application/json+a2ui"},
+                )
+            )
+            for message in a2ui_messages
+        ]
+        if active_a2ui_version == VERSION_0_8:
+            from app.a2ui_config import (
+                convert_v09_messages_to_v08,
+                validate_a2ui_v08_messages,
+            )
+
+            a2ui_messages = convert_v09_messages_to_v08(a2ui_messages)
+            validate_a2ui_v08_messages(a2ui_messages)
+            data_parts = [
+                types.Part(
+                    root=types.DataPart(
+                        data=message,
+                        metadata={"mimeType": "application/json+a2ui"},
+                    )
+                )
+                for message in a2ui_messages
+            ]
+        else:
+            from app.a2ui_config import validate_a2ui_messages
+
+            validate_a2ui_messages(a2ui_messages)
+        _scope_a2ui_surface_ids(a2ui_messages, task.id)
+        a2a_parts.extend(data_parts)
 
         if not a2a_parts:
             await updater.failed(
@@ -250,10 +359,10 @@ async def attach_a2a_routes(
     app_url: str | None = None,
 ) -> None:
     """Register A2A routes (JSON-RPC + agent-card endpoints) under ``rpc_path``."""
-    if "APP_URL" not in os.environ or "0.0.0.0" in os.environ["APP_URL"]:
-        os.environ["APP_URL"] = "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
-
-    resolved_app_url = app_url or os.environ["APP_URL"]
+    resolved_app_url = app_url or os.getenv("APP_URL", "").strip().rstrip("/")
+    dynamic_app_url = not resolved_app_url or "0.0.0.0" in resolved_app_url
+    if dynamic_app_url:
+        resolved_app_url = "http://localhost"
     resolved_agent_version = agent_version or os.getenv("AGENT_VERSION", "0.1.0")
     resolved_capabilities = capabilities or _default_capabilities()
 
@@ -267,6 +376,7 @@ async def attach_a2a_routes(
     from a2a.types import AgentSkill
 
     agent_card.description = "Intelligent procurement and inventory agent for Cymbal Coffee Roasters."
+    agent_card.default_output_modes = ["text/plain", "application/json+a2ui"]
     agent_card.skills = [
         AgentSkill(
             id="check_inventory",
@@ -293,9 +403,16 @@ async def attach_a2a_routes(
             tags=["notifications"],
         ),
     ]
+    app.state.a2a_agent_card = agent_card
+    app.state.a2a_rpc_path = rpc_path
+    app.state.a2a_dynamic_app_url = dynamic_app_url
 
     request_handler = DefaultRequestHandler(
-        agent_executor=CustomA2aAgentExecutor(agent=agent, runner=runner),
+        agent_executor=CustomA2aAgentExecutor(
+            agent=agent,
+            runner=runner,
+            agent_card=agent_card,
+        ),
         task_store=task_store,
     )
 
@@ -306,4 +423,3 @@ async def attach_a2a_routes(
         rpc_url=rpc_path,
         extended_agent_card_url=f"{rpc_path}{EXTENDED_AGENT_CARD_PATH}",
     )
-

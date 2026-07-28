@@ -8,7 +8,7 @@ import google.auth
 import vertexai
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
@@ -31,8 +31,24 @@ from app.tools.telemetry import (
 load_dotenv()
 if not os.getenv("GOOGLE_CLOUD_PROJECT"):
     os.environ["GOOGLE_CLOUD_PROJECT"] = "hackathon-y26"
-if not os.getenv("APP_URL") or "0.0.0.0" in os.environ.get("APP_URL", ""):
-    os.environ["APP_URL"] = "https://cymbal-coffee-procurement-dashboard-922201496337.us-central1.run.app"
+
+
+def _configured_app_url() -> str | None:
+    app_url = os.getenv("APP_URL", "").strip().rstrip("/")
+    return app_url if app_url and "0.0.0.0" not in app_url else None
+
+
+def _resolve_app_url(request: Request) -> str:
+    if app_url := _configured_app_url():
+        return app_url
+
+    if os.getenv("K_SERVICE") and os.getenv("K_REVISION"):
+        host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+        if host:
+            scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+            return f"{scheme}://{host}".rstrip("/")
+
+    return str(request.base_url).rstrip("/")
 
 vertexai.init(
     project=os.getenv("GOOGLE_CLOUD_PROJECT", "hackathon-y26"),
@@ -100,6 +116,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         runner=runner,
         task_store=InMemoryTaskStore(),
         rpc_path=f"/a2a/{adk_app.name}",
+        app_url=_configured_app_url(),
     )
 
     # Auto-start the simulation so the backend always has live data on boot
@@ -121,6 +138,19 @@ app: FastAPI = get_fast_api_app(
 
 app.title = "cymbal-coffee-procurement-agent"
 app.description = "API for interacting with the Agent cymbal-coffee-procurement-agent"
+
+
+@app.middleware("http")
+async def resolve_app_url(request: Request, call_next):
+    resolved_app_url = _resolve_app_url(request)
+    app.state.app_url = resolved_app_url
+
+    if getattr(app.state, "a2a_dynamic_app_url", False):
+        app.state.a2a_agent_card.url = (
+            f"{resolved_app_url}{app.state.a2a_rpc_path}"
+        )
+
+    return await call_next(request)
 
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
