@@ -7,12 +7,47 @@ of the demo scenario in Gemini Enterprise and adk web.
 """
 
 import logging
+import os
 import re
 from typing import Any
+from urllib.parse import urlencode
 
 from app.a2ui_config import normalize_a2ui_messages
 
 logger = logging.getLogger(__name__)
+
+
+def _get_base_url() -> str:
+    """Return the absolute app URL for building Image src attributes.
+
+    Reads APP_URL from the environment (set by Terraform / Cloud Run).
+    Falls back to empty string for local dev (images will use relative URLs).
+    """
+    url = os.getenv("APP_URL", "").strip().rstrip("/")
+    if url and "0.0.0.0" not in url:
+        return url
+    return ""
+
+
+def _progress_bar_url(percent: float, status: str) -> str:
+    """Build an absolute URL for the SVG progress bar endpoint."""
+    base = _get_base_url()
+    params = urlencode({"percent": percent, "status": status})
+    return f"{base}/api/progress-bar?{params}"
+
+
+def _progress_image(component_id: str, percent: float, status: str) -> dict:
+    """Build an A2UI Image component for an SVG progress bar."""
+    return {
+        "id": component_id,
+        "component": {
+            "Image": {
+                "url": {"literalString": _progress_bar_url(percent, status)},
+                "altText": {"literalString": f"{percent}% {status.title()}"},
+                "fit": "contain",
+            }
+        },
+    }
 
 
 def build_fleet_inventory_card() -> list[dict[str, Any]]:
@@ -69,7 +104,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row1",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl1", "val1"]},
+                                "children": {"explicitList": ["lbl1", "img1", "val1"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -83,11 +118,12 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
+                    _progress_image("img1", 6.2, "critical"),
                     {
                         "id": "val1",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
+                                "text": {"literalString": "6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -96,7 +132,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row2",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl2", "val2"]},
+                                "children": {"explicitList": ["lbl2", "img2", "val2"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -110,11 +146,12 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
+                    _progress_image("img2", 14.7, "critical"),
                     {
                         "id": "val2",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
+                                "text": {"literalString": "14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -123,7 +160,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row3",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl3", "val3"]},
+                                "children": {"explicitList": ["lbl3", "img3", "val3"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -137,11 +174,12 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
+                    _progress_image("img3", 14.1, "critical"),
                     {
                         "id": "val3",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.1% CRITICAL"},
+                                "text": {"literalString": "14.1% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -493,7 +531,7 @@ def build_consumption_analysis_card(
                         "id": "row_stock",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_stock", "val_stock"]},
+                                "children": {"explicitList": ["lbl_stock", "img_stock", "val_stock"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -504,10 +542,11 @@ def build_consumption_analysis_card(
                             "Text": {"text": {"literalString": "Current Stock Level:"}, "usageHint": "body"}
                         },
                     },
+                    _progress_image("img_stock", 14.8, "critical"),
                     {
                         "id": "val_stock",
                         "component": {
-                            "Text": {"text": {"literalString": f"{stock} [==........]"}, "usageHint": "body"}
+                            "Text": {"text": {"literalString": stock}, "usageHint": "body"}
                         },
                     },
                     {
@@ -873,7 +912,7 @@ def build_visual_chart_card(
                         "id": "row_oat",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_oat", "val_oat"]},
+                                "children": {"explicitList": ["lbl_oat", "img_oat", "val_oat"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -887,11 +926,12 @@ def build_visual_chart_card(
                             }
                         },
                     },
+                    _progress_image("img_oat", 6.2, "critical"),
                     {
                         "id": "val_oat",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
+                                "text": {"literalString": "6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -900,7 +940,7 @@ def build_visual_chart_card(
                         "id": "row_esp",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_esp", "val_esp"]},
+                                "children": {"explicitList": ["lbl_esp", "img_esp", "val_esp"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -914,11 +954,12 @@ def build_visual_chart_card(
                             }
                         },
                     },
+                    _progress_image("img_esp", 14.7, "critical"),
                     {
                         "id": "val_esp",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
+                                "text": {"literalString": "14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -927,7 +968,7 @@ def build_visual_chart_card(
                         "id": "row_dark",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_dark", "val_dark"]},
+                                "children": {"explicitList": ["lbl_dark", "img_dark", "val_dark"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -941,11 +982,12 @@ def build_visual_chart_card(
                             }
                         },
                     },
+                    _progress_image("img_dark", 23.0, "warning"),
                     {
                         "id": "val_dark",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[========..] 23.0% WARNING"},
+                                "text": {"literalString": "23.0% WARNING"},
                                 "usageHint": "body",
                             }
                         },
@@ -954,7 +996,7 @@ def build_visual_chart_card(
                         "id": "row_milk",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_milk", "val_milk"]},
+                                "children": {"explicitList": ["lbl_milk", "img_milk", "val_milk"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -965,11 +1007,12 @@ def build_visual_chart_card(
                             "Text": {"text": {"literalString": "Whole Milk:"}, "usageHint": "body"}
                         },
                     },
+                    _progress_image("img_milk", 88.5, "healthy"),
                     {
                         "id": "val_milk",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==========] 88.5% HEALTHY"},
+                                "text": {"literalString": "88.5% HEALTHY"},
                                 "usageHint": "body",
                             }
                         },
