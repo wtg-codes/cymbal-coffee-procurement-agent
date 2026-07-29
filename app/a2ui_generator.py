@@ -69,7 +69,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row1",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl1", "val1"]},
+                                "children": {"explicitList": ["lbl1", "img1", "val1"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -84,10 +84,20 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         },
                     },
                     {
+                        "id": "img1",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=6.2&status=critical"},
+                                "altText": {"literalString": "6.2% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val1",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
+                                "text": {"literalString": "6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -96,7 +106,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row2",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl2", "val2"]},
+                                "children": {"explicitList": ["lbl2", "img2", "val2"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -111,10 +121,20 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         },
                     },
                     {
+                        "id": "img2",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=14.7&status=critical"},
+                                "altText": {"literalString": "14.7% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val2",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
+                                "text": {"literalString": "14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -123,7 +143,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         "id": "row3",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl3", "val3"]},
+                                "children": {"explicitList": ["lbl3", "img3", "val3"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -138,10 +158,20 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                         },
                     },
                     {
+                        "id": "img3",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=14.1&status=critical"},
+                                "altText": {"literalString": "14.1% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val3",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.1% CRITICAL"},
+                                "text": {"literalString": "14.1% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -493,7 +523,7 @@ def build_consumption_analysis_card(
                         "id": "row_stock",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_stock", "val_stock"]},
+                                "children": {"explicitList": ["lbl_stock", "img_stock", "val_stock"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -505,9 +535,19 @@ def build_consumption_analysis_card(
                         },
                     },
                     {
+                        "id": "img_stock",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=14.8&status=critical"},
+                                "altText": {"literalString": "14.8% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val_stock",
                         "component": {
-                            "Text": {"text": {"literalString": f"{stock} [==........]"}, "usageHint": "body"}
+                            "Text": {"text": {"literalString": stock}, "usageHint": "body"}
                         },
                     },
                     {
@@ -873,7 +913,7 @@ def build_visual_chart_card(
                         "id": "row_oat",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_oat", "val_oat"]},
+                                "children": {"explicitList": ["lbl_oat", "img_oat", "val_oat"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -888,10 +928,20 @@ def build_visual_chart_card(
                         },
                     },
                     {
+                        "id": "img_oat",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=6.2&status=critical"},
+                                "altText": {"literalString": "6.2% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val_oat",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==........] 6.2% CRITICAL"},
+                                "text": {"literalString": "6.2% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -900,7 +950,7 @@ def build_visual_chart_card(
                         "id": "row_esp",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_esp", "val_esp"]},
+                                "children": {"explicitList": ["lbl_esp", "img_esp", "val_esp"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -915,10 +965,20 @@ def build_visual_chart_card(
                         },
                     },
                     {
+                        "id": "img_esp",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=14.7&status=critical"},
+                                "altText": {"literalString": "14.7% Critical"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val_esp",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[====......] 14.7% CRITICAL"},
+                                "text": {"literalString": "14.7% CRITICAL"},
                                 "usageHint": "body",
                             }
                         },
@@ -927,7 +987,7 @@ def build_visual_chart_card(
                         "id": "row_dark",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_dark", "val_dark"]},
+                                "children": {"explicitList": ["lbl_dark", "img_dark", "val_dark"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -942,10 +1002,20 @@ def build_visual_chart_card(
                         },
                     },
                     {
+                        "id": "img_dark",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=23.0&status=warning"},
+                                "altText": {"literalString": "23.0% Warning"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val_dark",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[========..] 23.0% WARNING"},
+                                "text": {"literalString": "23.0% WARNING"},
                                 "usageHint": "body",
                             }
                         },
@@ -954,7 +1024,7 @@ def build_visual_chart_card(
                         "id": "row_milk",
                         "component": {
                             "Row": {
-                                "children": {"explicitList": ["lbl_milk", "val_milk"]},
+                                "children": {"explicitList": ["lbl_milk", "img_milk", "val_milk"]},
                                 "distribution": "spaceBetween",
                             }
                         },
@@ -966,10 +1036,20 @@ def build_visual_chart_card(
                         },
                     },
                     {
+                        "id": "img_milk",
+                        "component": {
+                            "Image": {
+                                "url": {"literalString": "/api/progress-bar?percent=88.5&status=healthy"},
+                                "altText": {"literalString": "88.5% Healthy"},
+                                "fit": "contain",
+                            }
+                        },
+                    },
+                    {
                         "id": "val_milk",
                         "component": {
                             "Text": {
-                                "text": {"literalString": "[==========] 88.5% HEALTHY"},
+                                "text": {"literalString": "88.5% HEALTHY"},
                                 "usageHint": "body",
                             }
                         },

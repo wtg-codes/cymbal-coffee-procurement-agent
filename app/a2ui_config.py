@@ -75,7 +75,7 @@ STRICT RULES TO PREVENT FORM VALIDATION ERRORS:
 8. Do NOT use beginRendering, surfaceUpdate, type, explicitList, usageHint, primary, or literalString.
 
 CHARTS & VISUAL TELEMETRY:
-- For chart/graph requests: render a visual A2UI card with progress bars (e.g. "[========..] 78%"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
+- For chart/graph requests: render a visual A2UI card with progress bar Image components (e.g. url="/api/progress-bar?percent=6.2&status=critical"), stock status badges (CRITICAL/WARNING/HEALTHY), and formatted metric rows.
 - STRICT CATALOG REQUIREMENT: You MUST ONLY use valid A2UI 0.9 components: Card, Column, Row, Text, Button, Divider, Image, Icon.
 - NEVER use WebFrameSrcdoc or WebFrameUrl — they are unsupported extensions in v0.9 and cause form validation errors.
 
@@ -85,13 +85,15 @@ Structure of <a2ui-json> block:
   {{"version":"v0.9", "createSurface":{{"surfaceId":"cardSurface", "catalogId":"{A2UI_CATALOG_ID}"}}}},
   {{"version":"v0.9", "updateComponents":{{"surfaceId":"cardSurface", "components":[
       {{"id":"root",    "component":"Card",   "child":"col"}},
-      {{"id":"col",     "component":"Column", "children":["title","divider","bar1","btn"], "justify":"start", "align":"stretch"}},
+      {{"id":"col",     "component":"Column", "children":["title","divider","row1","btn"], "justify":"start", "align":"stretch"}},
       {{"id":"title",   "component":"Text",   "text":"Fleet Inventory Telemetry", "variant":"h2"}},
       {{"id":"divider", "component":"Divider","axis":"horizontal"}},
-      {{"id":"bar1",    "component":"Text",   "text":"Oat Milk [==........] 6.2% CRITICAL", "variant":"body"}},
+      {{"id":"row1",    "component":"Row",    "children":["lbl1","img1","val1"], "justify":"spaceBetween"}},
+      {{"id":"lbl1",    "component":"Text",   "text":"Barista Oat Milk", "variant":"body"}},
+      {{"id":"img1",    "component":"Image",  "url":"/api/progress-bar?percent=6.2&status=critical", "description":"6.2% Critical", "fit":"contain"}},
+      {{"id":"val1",    "component":"Text",   "text":"6.2% CRITICAL", "variant":"body"}},
       {{"id":"btn",     "component":"Button", "child":"btnText", "variant":"primary", "action":{{"event":{{"name":"reorder", "context":{{"message":"Reorder Oat Milk"}}}}}}}},
-      {{"id":"btnText", "component":"Text",   "text":"Reorder Oat Milk", "variant":"body"}},
-      {{"id":"val1",    "component":"Text",   "text":"[========..] 23.0% OK", "variant":"body"}}
+      {{"id":"btnText", "component":"Text",   "text":"Reorder Oat Milk", "variant":"body"}}
   ]}}}}
 ]
 </a2ui-json>
@@ -244,6 +246,12 @@ def normalize_a2ui_component(component: dict[str, Any]) -> dict[str, Any]:
         props["variant"] = "primary" if props.pop("primary") else "default"
     if "text" in props:
         props["text"] = _ascii_text(_literal_value(props["text"]))
+    if "url" in props:
+        props["url"] = _literal_value(props["url"])
+    if "altText" in props and "description" not in props:
+        props["description"] = props.pop("altText")
+    if "description" in props:
+        props["description"] = _ascii_text(_literal_value(props["description"]))
     if "action" in props:
         props["action"] = _normalize_action(props["action"])
 

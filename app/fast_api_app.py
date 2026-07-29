@@ -8,7 +8,7 @@ import google.auth
 import vertexai
 from a2a.server.tasks import InMemoryTaskStore
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse
 from google.adk.cli.fast_api import get_fast_api_app
 from google.adk.runners import Runner
@@ -159,6 +159,32 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 @app.get("/health")
 def health_check() -> dict:
     return {"status": "healthy", "service": "cymbal-coffee-procurement-dashboard"}
+
+
+@app.get("/api/progress-bar")
+def get_progress_bar(percent: float = 50.0, status: str = "normal") -> Response:
+    """Generate a dynamic SVG progress bar image for A2UI cards."""
+    p = max(0.0, min(100.0, float(percent)))
+    s = status.lower()
+
+    if s in ("critical", "danger") or p < 15.0:
+        bar_color = "#dc2626"  # Red
+        bg_color = "#fee2e2"
+    elif s in ("warning", "warn") or p < 30.0:
+        bar_color = "#d97706"  # Amber
+        bg_color = "#fef3c7"
+    else:
+        bar_color = "#16a34a"  # Green
+        bg_color = "#dcfce7"
+
+    filled_width = max(4, int(p * 1.6))
+    svg = (
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="160" height="14" viewBox="0 0 160 14">\n'
+        f'  <rect width="160" height="14" rx="7" fill="{bg_color}"/>\n'
+        f'  <rect width="{filled_width}" height="14" rx="7" fill="{bar_color}"/>\n'
+        f'</svg>'
+    )
+    return Response(content=svg, media_type="image/svg+xml")
 
 
 @app.get("/", response_class=HTMLResponse)
