@@ -7,12 +7,47 @@ of the demo scenario in Gemini Enterprise and adk web.
 """
 
 import logging
+import os
 import re
 from typing import Any
+from urllib.parse import urlencode
 
 from app.a2ui_config import normalize_a2ui_messages
 
 logger = logging.getLogger(__name__)
+
+
+def _get_base_url() -> str:
+    """Return the absolute app URL for building Image src attributes.
+
+    Reads APP_URL from the environment (set by Terraform / Cloud Run).
+    Falls back to empty string for local dev (images will use relative URLs).
+    """
+    url = os.getenv("APP_URL", "").strip().rstrip("/")
+    if url and "0.0.0.0" not in url:
+        return url
+    return ""
+
+
+def _progress_bar_url(percent: float, status: str) -> str:
+    """Build an absolute URL for the SVG progress bar endpoint."""
+    base = _get_base_url()
+    params = urlencode({"percent": percent, "status": status})
+    return f"{base}/api/progress-bar?{params}"
+
+
+def _progress_image(component_id: str, percent: float, status: str) -> dict:
+    """Build an A2UI Image component for an SVG progress bar."""
+    return {
+        "id": component_id,
+        "component": {
+            "Image": {
+                "url": {"literalString": _progress_bar_url(percent, status)},
+                "altText": {"literalString": f"{percent}% {status.title()}"},
+                "fit": "contain",
+            }
+        },
+    }
 
 
 def build_fleet_inventory_card() -> list[dict[str, Any]]:
@@ -83,16 +118,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
-                    {
-                        "id": "img1",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=6.2&status=critical"},
-                                "altText": {"literalString": "6.2% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img1", 6.2, "critical"),
                     {
                         "id": "val1",
                         "component": {
@@ -120,16 +146,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
-                    {
-                        "id": "img2",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=14.7&status=critical"},
-                                "altText": {"literalString": "14.7% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img2", 14.7, "critical"),
                     {
                         "id": "val2",
                         "component": {
@@ -157,16 +174,7 @@ def build_fleet_inventory_card() -> list[dict[str, Any]]:
                             }
                         },
                     },
-                    {
-                        "id": "img3",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=14.1&status=critical"},
-                                "altText": {"literalString": "14.1% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img3", 14.1, "critical"),
                     {
                         "id": "val3",
                         "component": {
@@ -534,16 +542,7 @@ def build_consumption_analysis_card(
                             "Text": {"text": {"literalString": "Current Stock Level:"}, "usageHint": "body"}
                         },
                     },
-                    {
-                        "id": "img_stock",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=14.8&status=critical"},
-                                "altText": {"literalString": "14.8% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img_stock", 14.8, "critical"),
                     {
                         "id": "val_stock",
                         "component": {
@@ -927,16 +926,7 @@ def build_visual_chart_card(
                             }
                         },
                     },
-                    {
-                        "id": "img_oat",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=6.2&status=critical"},
-                                "altText": {"literalString": "6.2% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img_oat", 6.2, "critical"),
                     {
                         "id": "val_oat",
                         "component": {
@@ -964,16 +954,7 @@ def build_visual_chart_card(
                             }
                         },
                     },
-                    {
-                        "id": "img_esp",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=14.7&status=critical"},
-                                "altText": {"literalString": "14.7% Critical"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img_esp", 14.7, "critical"),
                     {
                         "id": "val_esp",
                         "component": {
@@ -1001,16 +982,7 @@ def build_visual_chart_card(
                             }
                         },
                     },
-                    {
-                        "id": "img_dark",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=23.0&status=warning"},
-                                "altText": {"literalString": "23.0% Warning"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img_dark", 23.0, "warning"),
                     {
                         "id": "val_dark",
                         "component": {
@@ -1035,16 +1007,7 @@ def build_visual_chart_card(
                             "Text": {"text": {"literalString": "Whole Milk:"}, "usageHint": "body"}
                         },
                     },
-                    {
-                        "id": "img_milk",
-                        "component": {
-                            "Image": {
-                                "url": {"literalString": "/api/progress-bar?percent=88.5&status=healthy"},
-                                "altText": {"literalString": "88.5% Healthy"},
-                                "fit": "contain",
-                            }
-                        },
-                    },
+                    _progress_image("img_milk", 88.5, "healthy"),
                     {
                         "id": "val_milk",
                         "component": {
