@@ -1,0 +1,14 @@
+# Force GitHub Linguist to recognize this as a Python project
+*.py linguist-language=Python
+
+# Exclude documentation and vendored directories from language stats
+docs/** linguist-documentation
+*.md linguist-documentation
+
+# Exclude any remaining man pages or roff files from language detection
+*.1 linguist-vendored
+*.roff linguist-vendored
+*.man linguist-vendored
+
+# Lock files are generated
+uv.lock linguist-generated
