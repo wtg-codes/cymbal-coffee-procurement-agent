@@ -13,8 +13,8 @@ build/
 # Virtual environments
 .env
 !.env.example
-.venv
-.venv*
+.venv/
+venv/
 
 # ADK / agents-cli
 .adk/
@@ -44,5 +44,8 @@ Thumbs.db
 # Artifacts / generated
 artifacts/
 job_log.txt
+
+# Local binaries and tools (do not commit vendored CLIs)
+bin/
 
 # Lock files are committed (uv.lock)
